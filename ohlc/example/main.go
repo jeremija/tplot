@@ -60,7 +60,7 @@ func main() {
 		return v
 	}
 
-	ohlcs := make([]ohlc.OHLC, len(obj.Result["86400"]))
+	items := make([]ohlc.Item, len(obj.Result["86400"]))
 
 	for i, r := range obj.Result["86400"] {
 		ts := mustFloat(r[0])
@@ -69,7 +69,7 @@ func main() {
 		l := mustDec(r[3])
 		c := mustDec(r[4])
 
-		ohlcs[i] = ohlc.OHLC{
+		items[i] = ohlc.Item{
 			O:         o,
 			H:         h,
 			L:         l,
@@ -78,7 +78,7 @@ func main() {
 		}
 	}
 
-	ohlcPanel.SetOHLC(ohlcs)
+	ohlcPanel.SetItems(items)
 	ohlcPanel.SetBorder(true)
 
 	layout := tview.NewFlex().

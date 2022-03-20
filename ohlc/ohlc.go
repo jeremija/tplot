@@ -6,7 +6,6 @@ import (
 	"math"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/jeremija/tplot/scale"
@@ -14,110 +13,93 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// OHLC is a Box component that can render OHLC data.
 type OHLC struct {
-	O, H, L, C decimal.Decimal
-	Timestamp  time.Time
-}
-
-type OHLCPlot struct {
-	O, H, L, C int
-	ts         time.Time
-}
-
-func NewOHLCPlots(ohlcs []OHLC, scale *scale.Linear, h int) []OHLCPlot {
-	var (
-		min, max       decimal.Decimal
-		minSet, maxSet bool
-	)
-
-	for _, ohlc := range ohlcs {
-		if !minSet || ohlc.L.LessThan(min) {
-			min = ohlc.L
-			minSet = true
-		}
-
-		if !maxSet || ohlc.H.GreaterThan(max) {
-			max = ohlc.H
-			maxSet = true
-		}
-	}
-
-	scale.SetRange(min, max)
-	scale.SetSize(h)
-
-	ret := make([]OHLCPlot, len(ohlcs))
-
-	for i, ohlc := range ohlcs {
-		ret[i] = OHLCPlot{
-			O:  scale.Value(ohlc.O),
-			H:  scale.Value(ohlc.H),
-			L:  scale.Value(ohlc.L),
-			C:  scale.Value(ohlc.C),
-			ts: ohlc.Timestamp,
-		}
-	}
-
-	return ret
-}
-
-type OHLCPanel struct {
 	*tview.Box
 
-	mu     sync.Mutex
-	ohlcs  []OHLC
-	offset int
-	logger io.Writer
+	mu      sync.Mutex
+	items   []Item
+	offset  int
+	spacing int
+	logger  io.Writer
+	runes   Runes
 }
 
-func New() *OHLCPanel {
-	return &OHLCPanel{
-		Box: tview.NewBox(),
+// New creates a new instance of the OHLC component.
+func New() *OHLC {
+	return &OHLC{
+		Box:     tview.NewBox(),
+		runes:   DefaultRunes,
+		spacing: 1,
 	}
 }
 
-func (p *OHLCPanel) SetLogger(w io.Writer) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+// SetLogger sets the logger for debugging.
+func (o *OHLC) SetLogger(w io.Writer) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 
-	p.logger = w
+	o.logger = w
 }
 
-func (p *OHLCPanel) Logger() io.Writer {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+// Logger returns the current logger set. Used for debugging.
+func (o *OHLC) Logger() io.Writer {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 
-	if w := p.logger; w != nil {
+	if w := o.logger; w != nil {
 		return w
 	}
 
 	return nopWriter{}
 }
 
-func (p *OHLCPanel) Offset() int {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+// Offset returns the current offset.
+func (o *OHLC) Offset() int {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 
-	return p.offset
+	return o.offset
 }
 
-func (p *OHLCPanel) AddOffset(offset int) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+// AddOffset adds delta to the current offset.
+func (o *OHLC) AddOffset(delta int) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 
-	offset = p.offset + offset
+	delta = o.offset + delta
 
-	p.setOffset(offset)
+	o.setOffset(delta)
 }
 
-func (p *OHLCPanel) SetOffset(offset int) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+// SetOffset sets the scroll offset for OHLC data.
+func (o *OHLC) SetOffset(offset int) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 
-	p.setOffset(offset)
+	o.setOffset(offset)
 }
 
-func (p *OHLCPanel) setOffset(offset int) {
-	if l := len(p.ohlcs); offset >= l {
+// SetRunes sets the runes used to plot the chart.
+func (o *OHLC) SetRunes(runes Runes) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	o.runes = runes
+}
+
+// Runes returns the current set of runes used to plot the chart.
+func (o *OHLC) Runes() Runes {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	return o.runes
+}
+
+// setOffset sets the offset, but it ensures it's always less than the size of
+// the items and is never negative.
+func (o *OHLC) setOffset(offset int) {
+	if l := len(o.items); offset >= l {
 		offset = l - 1
 	}
 
@@ -125,75 +107,110 @@ func (p *OHLCPanel) setOffset(offset int) {
 		offset = 0
 	}
 
-	p.offset = offset
+	o.offset = offset
 }
 
-func (p *OHLCPanel) SetOHLC(ohlcs []OHLC) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+// SetItems sets the OHLC data.
+func (o *OHLC) SetItems(items []Item) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 
-	p.ohlcs = ohlcs
+	o.items = items
 }
 
-func (p *OHLCPanel) OHLCs() []OHLC {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+// Items returns the current OHLC data.
+func (o *OHLC) Items() []Item {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 
-	return p.ohlcs
+	return o.items
 }
 
-func (b *OHLCPanel) InputHandler() func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
-	return b.WrapInputHandler(
+// SetSpacing sets the chart spacing.
+func (o *OHLC) SetSpacing(spacing int) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if spacing <= 0 {
+		spacing = 1
+	}
+
+	o.spacing = spacing
+}
+
+// Spacing returns the current spacing.
+func (o *OHLC) Spacing() int {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	return o.spacing
+}
+
+// MouseHandler implements tview.Primitive.
+func (o *OHLC) InputHandler() func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
+	return o.WrapInputHandler(
 		func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
 			switch event.Key() {
 			case tcell.KeyEnd:
-				b.SetOffset(0)
+				o.SetOffset(0)
 			case tcell.KeyHome:
-				s := len(b.OHLCs())
-				b.SetOffset(s - 1)
+				s := len(o.Items())
+				o.SetOffset(s - 1)
 			case tcell.KeyPgUp:
-				b.AddOffset(20)
+				o.AddOffset(20)
 			case tcell.KeyPgDn:
-				b.AddOffset(-20)
+				o.AddOffset(-20)
 			case tcell.KeyLeft:
-				b.AddOffset(1)
+				o.AddOffset(1)
 			case tcell.KeyRight:
-				b.AddOffset(-1)
+				o.AddOffset(-1)
 
 			case tcell.KeyRune:
 				switch event.Rune() {
 				case 'h':
-					b.AddOffset(1)
+					o.AddOffset(1)
 				case 'l':
-					b.AddOffset(-1)
+					o.AddOffset(-1)
 				}
 			}
 		},
 	)
 }
 
-func (b *OHLCPanel) MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
-	return b.Box.WrapMouseHandler(func(action tview.MouseAction, ev *tcell.EventMouse, setFocus func(p tview.Primitive)) (bool, tview.Primitive) {
+// MouseHandler implements tview.Primitive.
+func (o *OHLC) MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
+	return o.Box.WrapMouseHandler(func(action tview.MouseAction, ev *tcell.EventMouse, setFocus func(p tview.Primitive)) (bool, tview.Primitive) {
 		switch action {
 		case tview.MouseScrollUp:
-			b.AddOffset(10)
+			o.AddOffset(10)
 
-			return true, b
+			return true, o
 		case tview.MouseScrollDown:
-			b.AddOffset(-10)
+			o.AddOffset(-10)
 
-			return true, b
+			return true, o
 		}
 
-		return false, b
+		return false, o
 	})
 }
 
-func (p *OHLCPanel) drawAxisY(screen tcell.Screen, scale *scale.Linear, log io.Writer) int {
-	x, y, width, height := p.GetInnerRect()
+// drawAxisY draws the Y axis.
+func (o *OHLC) drawAxisY(screen tcell.Screen, scale *scale.Linear, log io.Writer, lastItem *Item) int {
+	x, y, width, height := o.GetInnerRect()
 
 	min, _ := scale.Range()
 	step := scale.Step()
+
+	var (
+		current    int
+		currentVal decimal.Decimal
+	)
+
+	if lastItem != nil {
+		current = scale.Value(lastItem.C)
+		currentVal = lastItem.C
+	}
 
 	// numDecs contains the number of decimals spot to represent the axis.
 	numDecs := 2
@@ -210,6 +227,10 @@ func (p *OHLCPanel) drawAxisY(screen tcell.Screen, scale *scale.Linear, log io.W
 
 	for i := 0; i < height; i++ {
 		val := min.Add(decimal.New(int64(i), 0).Mul(step))
+
+		if lastItem != nil && i == current {
+			val = currentVal
+		}
 
 		valFloat, _ := val.Float64()
 
@@ -234,79 +255,89 @@ func (p *OHLCPanel) drawAxisY(screen tcell.Screen, scale *scale.Linear, log io.W
 	for i, valStr := range vals {
 		yy := y + height - i - 1
 
+		currentStyle := style
+
+		if lastItem != nil && i == current {
+			currentStyle = tcell.StyleDefault
+		}
+
 		for i, val := range valStr {
 			xx := x + width - len(valStr) + i
 
 			fmt.Fprintln(log, "axis y", xx, yy, string(val))
-			screen.SetContent(xx, yy, val, nil, style)
+			screen.SetContent(xx, yy, val, nil, currentStyle)
 		}
 	}
 
 	return maxWidth
 }
 
-// Draw draws this primitive onto the screen. Implementers can call the
-// screen's ShowCursor() function but should only do so when they have focus.
-// (They will need to keep track of this themselves.)
-func (p *OHLCPanel) Draw(screen tcell.Screen) {
-	p.DrawForSubclass(screen, p)
-
-	x, y, width, height := p.GetInnerRect()
+// Draw implements tview.Primitive.
+func (o *OHLC) Draw(screen tcell.Screen) {
+	x, y, width, height := o.GetInnerRect()
 
 	scale := scale.NewLinear()
+	spacing := o.Spacing()
+	items := o.Items()
+	offset := o.Offset()
 
-	ohlcW := 1
-
-	rawOHLCs := p.OHLCs()
-
-	offset := p.Offset()
-	if l := len(rawOHLCs); offset > l {
-		rawOHLCs = nil
+	if l := len(items); offset > l {
+		items = nil
 	} else {
-		rawOHLCs = rawOHLCs[:l-offset]
+		items = items[:l-offset]
 	}
 
-	if l := len(rawOHLCs); l > 0 {
-		ohlc := rawOHLCs[l-1]
+	if l := len(items); l > 0 {
+		ohlc := items[l-1]
 
-		title := fmt.Sprintf(" O=%s H=%s L=%s C=%s TS=%s", ohlc.O, ohlc.H, ohlc.L, ohlc.C, ohlc.Timestamp.Format("2006-01-02T15:04:05"))
+		title := fmt.Sprintf(" O=%s H=%s L=%s C=%s TS=%s ", ohlc.O, ohlc.H, ohlc.L, ohlc.C, ohlc.Timestamp.Format("2006-01-02T15:04:05"))
 
-		p.SetTitle(title)
-
-		p.DrawForSubclass(screen, p)
+		o.SetTitle(title)
 	}
 
-	maxCount := width / ohlcW
+	o.DrawForSubclass(screen, o)
 
-	if l := len(rawOHLCs); l > maxCount {
-		rawOHLCs = rawOHLCs[l-maxCount:]
+	maxCount := width / spacing
+
+	if l := len(items); l > maxCount {
+		items = items[l-maxCount:]
 	}
 
-	ohlcs := NewOHLCPlots(rawOHLCs, scale, height)
-	logger := p.Logger()
+	scale.SetSize(height)
+
+	scaled := newScaledItems(items, scale)
+	logger := o.Logger()
 
 	axisYWidth := 0
 
-	if len(ohlcs) > 0 {
-		axisYWidth = p.drawAxisY(screen, scale, logger)
+	var lastItem *Item
+
+	if l := len(items); l > 0 {
+		lastItem = &items[l-1]
+	}
+
+	if len(scaled) > 0 {
+		axisYWidth = o.drawAxisY(screen, scale, logger, lastItem)
 	}
 
 	width -= axisYWidth
 
 	// We need to readjust the maxCount because we drew the axis.
-	maxCount = width / ohlcW
+	maxCount = width / spacing
 
-	if l := len(rawOHLCs); l > maxCount {
-		ohlcs = ohlcs[l-maxCount:]
+	if l := len(scaled); l > maxCount {
+		scaled = scaled[l-maxCount:]
 	}
 
 	if width < 0 {
 		return
 	}
 
-	fmt.Fprintln(logger, "log start", len(ohlcs))
+	fmt.Fprintln(logger, "log start", len(scaled))
 
-	for i, ohlc := range ohlcs {
+	runes := o.Runes()
+
+	for i, ohlc := range scaled {
 		o, h, l, c := ohlc.O, ohlc.H, ohlc.L, ohlc.C
 
 		style := tcell.StyleDefault
@@ -319,19 +350,10 @@ func (p *OHLCPanel) Draw(screen tcell.Screen) {
 			a, b = b, a
 		}
 
-		xx := x + i*ohlcW + (width - len(ohlcs)*ohlcW)
+		xx := x + i*spacing + (width - len(scaled)*spacing)
 		_ = y
 
 		fmt.Fprintln(logger, "ohlc", i, o, h, l, c)
-
-		// Sample values:
-		//
-		//     ╽   ╷ ╷     │
-		//     ┃╻  │ ╵ ┃ ─ ┼ ┼ ┬ ┴
-		//     ╿╹  │
-		//     │
-		//
-		// See more at: https://en.wikipedia.org/wiki/Box-drawing_character
 
 		for j := h; j >= l; j-- {
 			style := style
@@ -347,32 +369,32 @@ func (p *OHLCPanel) Draw(screen tcell.Screen) {
 
 			switch {
 			case isHigh && isLow && isOpen && isClose:
-				ch = '─'
+				ch = runes.Same
 			case isHigh && isOpen && isClose:
-				ch = '┬'
+				ch = runes.HighOpenClose
 			case isLow && isOpen && isClose:
-				ch = '┴'
+				ch = runes.LowOpenClose
 			case isHigh && isOpen:
-				ch = '╻'
 				style = style.Bold(true)
+				ch = runes.HighOpen
 			case isLow && isClose:
-				ch = '╹'
 				style = style.Bold(true)
+				ch = runes.LowClose
 			case isHigh:
-				ch = '╷'
+				ch = runes.High
 			case isLow:
-				ch = '╵'
+				ch = runes.Low
 			case isOpen && isClose:
-				ch = '┼'
+				ch = runes.OpenClose
 			case isOpen:
-				ch = '╽'
+				ch = runes.Open
 			case isClose:
-				ch = '╿'
+				ch = runes.Close
 			case isThick:
 				style = style.Bold(true)
-				ch = '┃'
+				ch = runes.Thick
 			default:
-				ch = '│'
+				ch = runes.Thin
 			}
 
 			fmt.Fprintln(logger, "coord", xx, yy, string(ch))

@@ -2,31 +2,43 @@ package ohlc_test
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/jeremija/tplot/ohlc"
+	"github.com/jeremija/tplot/test"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestOHLC(t *testing.T) {
 	p := ohlc.New()
-	scr := newScreen()
+	scr := test.NewScreen()
 
-	ohlcs := []ohlc.OHLC{
-		{decimal.New(10, 0), decimal.New(30, 0), decimal.New(5, 0), decimal.New(15, 0), time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)},
-		{decimal.New(15, 0), decimal.New(15, 0), decimal.New(15, 0), decimal.New(15, 0), time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)},
-		{decimal.New(15, 0), decimal.New(20, 0), decimal.New(5, 0), decimal.New(15, 0), time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)},
-		{decimal.New(20, 0), decimal.New(20, 0), decimal.New(10, 0), decimal.New(10, 0), time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)},
-		{decimal.New(15, 0), decimal.New(20, 0), decimal.New(5, 0), decimal.New(15, 0), time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)},
+	d := func(val int64) decimal.Decimal {
+		return decimal.New(val, 0)
+	}
+
+	date := func(str string) time.Time {
+		ts, err := time.Parse("2006-01-02", str)
+		if err != nil {
+			panic(err)
+		}
+
+		return ts
+	}
+
+	items := []ohlc.Item{
+		{date("2020-01-01"), d(10), d(30), d(5), d(15)},
+		{date("2020-01-02"), d(15), d(15), d(15), d(15)},
+		{date("2020-01-03"), d(15), d(20), d(5), d(15)},
+		{date("2020-01-04"), d(20), d(20), d(10), d(10)},
+		{date("2020-01-05"), d(15), d(20), d(5), d(15)},
 	}
 
 	p.SetRect(0, 0, 20, 15)
 
-	p.SetOHLC(ohlcs)
+	p.SetItems(items)
 
 	p.Draw(scr)
 
@@ -38,7 +50,7 @@ func TestOHLC(t *testing.T) {
           │    21.07
           │ ╷╻╷19.29
           │ │┃│17.50
-          │ │┃│15.71
+          │ │┃│15.00
           ╽─┼┃┼13.93
           ┃ │┃│12.14
           ┃ │┃│10.36
@@ -51,57 +63,4 @@ func TestOHLC(t *testing.T) {
 	fmt.Println("===")
 
 	assert.Equal(t, exp, scr.Content())
-}
-
-type screen struct {
-	tcell.Screen
-
-	content [][]rune
-}
-
-func newScreen() *screen {
-	s := &screen{}
-
-	s.Clear()
-
-	return s
-}
-
-func (s *screen) Clear() {
-	s.content = nil
-}
-
-// func (s *screen) Size() (int, int) {
-// 	return 30, 40
-// }
-
-func (s *screen) SetContent(x int, y int, mainc rune, combc []rune, style tcell.Style) {
-	yy := len(s.content)
-
-	if yy <= y {
-		v := make([][]rune, y+1)
-		copy(v, s.content)
-		s.content = v
-	}
-
-	row := s.content[y]
-	xx := len(row)
-
-	if xx <= x {
-		v := make([]rune, x+1)
-		copy(v, row)
-		s.content[y] = v
-	}
-
-	s.content[y][x] = mainc
-}
-
-func (s *screen) Content() string {
-	ret := make([]string, len(s.content))
-
-	for i, row := range s.content {
-		ret[i] = strings.TrimSuffix(string(row), " ")
-	}
-
-	return strings.Join(ret, "\n")
 }
