@@ -68,12 +68,14 @@ func main() {
 		h := mustDec(r[2])
 		l := mustDec(r[3])
 		c := mustDec(r[4])
+		v := mustDec(r[5])
 
 		items[i] = ohlc.Item{
 			O:         o,
 			H:         h,
 			L:         l,
 			C:         c,
+			V:         v,
 			Timestamp: time.Unix(int64(ts), 0),
 		}
 	}

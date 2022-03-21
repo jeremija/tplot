@@ -11,6 +11,7 @@ import (
 type Item struct {
 	Timestamp  time.Time
 	O, H, L, C decimal.Decimal
+	V          decimal.Decimal
 }
 
 // scaledItem is a lossy representation of Item that can be rendered in the
@@ -18,14 +19,18 @@ type Item struct {
 type scaledItem struct {
 	ts         time.Time
 	O, H, L, C int
+	V          int
 }
 
 // newScaledItems creates scaledItems from Items and scale. The scale's
 // range will be set by this function.
-func newScaledItems(ohlcs []Item, scale *scale.Linear) []scaledItem {
+func newScaledItems(ohlcs []Item, scale *scale.Linear, volScale *scale.Linear) []scaledItem {
 	var (
 		min, max       decimal.Decimal
 		minSet, maxSet bool
+
+		minVol, maxVol       decimal.Decimal
+		minVolSet, maxVolSet bool
 	)
 
 	for _, ohlc := range ohlcs {
@@ -38,9 +43,20 @@ func newScaledItems(ohlcs []Item, scale *scale.Linear) []scaledItem {
 			max = ohlc.H
 			maxSet = true
 		}
+
+		if !minVolSet || ohlc.V.LessThan(minVol) {
+			minVol = ohlc.V
+			minVolSet = true
+		}
+
+		if !maxVolSet || ohlc.V.GreaterThan(maxVol) {
+			maxVol = ohlc.V
+			maxVolSet = true
+		}
 	}
 
 	scale.SetRange(min, max)
+	volScale.SetRange(minVol, maxVol)
 
 	ret := make([]scaledItem, len(ohlcs))
 
@@ -50,6 +66,7 @@ func newScaledItems(ohlcs []Item, scale *scale.Linear) []scaledItem {
 			H:  scale.Value(ohlc.H),
 			L:  scale.Value(ohlc.L),
 			C:  scale.Value(ohlc.C),
+			V:  volScale.Value(ohlc.V),
 			ts: ohlc.Timestamp,
 		}
 	}

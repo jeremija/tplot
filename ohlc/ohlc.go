@@ -3,7 +3,6 @@ package ohlc
 import (
 	"fmt"
 	"io"
-	"math"
 	"strconv"
 	"sync"
 
@@ -23,6 +22,8 @@ type OHLC struct {
 	spacing int
 	logger  io.Writer
 	runes   Runes
+
+	volSize int
 }
 
 // New creates a new instance of the OHLC component.
@@ -31,6 +32,7 @@ func New() *OHLC {
 		Box:     tview.NewBox(),
 		runes:   DefaultRunes,
 		spacing: 1,
+		volSize: 10,
 	}
 }
 
@@ -195,40 +197,26 @@ func (o *OHLC) MouseHandler() func(action tview.MouseAction, event *tcell.EventM
 	})
 }
 
-// drawAxisY draws the Y axis.
-func (o *OHLC) drawAxisY(screen tcell.Screen, scale *scale.Linear, log io.Writer, lastItem *Item) int {
-	x, y, width, height := o.GetInnerRect()
+// drawOHLCAxisY draws the Y axis.
+func (o *OHLC) drawAxisY(screen tcell.Screen, log io.Writer, scale *scale.Linear, r rect, color tcell.Color, getValue func() (decimal.Decimal, bool)) int {
+	var current int
 
-	min, _ := scale.Range()
-	step := scale.Step()
-
-	var (
-		current    int
-		currentVal decimal.Decimal
-	)
-
-	if lastItem != nil {
-		current = scale.Value(lastItem.C)
-		currentVal = lastItem.C
+	currentVal, lastValOK := getValue()
+	if lastValOK {
+		current = scale.Value(currentVal)
 	}
 
 	// numDecs contains the number of decimals spot to represent the axis.
-	numDecs := 2
-
-	stepFloat, _ := step.Float64()
-
-	if f := math.Log10(stepFloat); f < 0 {
-		numDecs = int(math.Abs(f)) + 2
-	}
+	numDecs := scale.NumDecimals() + 2
 
 	maxWidth := 0
 
-	vals := make([]string, height)
+	vals := make([]string, r.h)
 
-	for i := 0; i < height; i++ {
-		val := min.Add(decimal.New(int64(i), 0).Mul(step))
+	for i := 0; i < r.h; i++ {
+		val := scale.Reverse(i)
 
-		if lastItem != nil && i == current {
+		if lastValOK && i == current {
 			val = currentVal
 		}
 
@@ -241,28 +229,28 @@ func (o *OHLC) drawAxisY(screen tcell.Screen, scale *scale.Linear, log io.Writer
 			maxWidth = l
 		}
 
-		fmt.Fprintln(log, "value", i, string(valStr), step)
+		fmt.Fprintln(log, "value", i, string(valStr))
 
 		vals[i] = valStr
 	}
 
-	if width < maxWidth {
+	if r.w < maxWidth {
 		return 0 // hide axis when no room.
 	}
 
-	style := tcell.StyleDefault.Foreground(tcell.ColorDarkCyan)
+	style := tcell.StyleDefault.Foreground(color)
 
 	for i, valStr := range vals {
-		yy := y + height - i - 1
+		yy := r.y + r.h - i - 1
 
 		currentStyle := style
 
-		if lastItem != nil && i == current {
+		if lastValOK && i == current {
 			currentStyle = tcell.StyleDefault
 		}
 
 		for i, val := range valStr {
-			xx := x + width - len(valStr) + i
+			xx := r.x + r.w - len(valStr) + i
 
 			fmt.Fprintln(log, "axis y", xx, yy, string(val))
 			screen.SetContent(xx, yy, val, nil, currentStyle)
@@ -272,11 +260,36 @@ func (o *OHLC) drawAxisY(screen tcell.Screen, scale *scale.Linear, log io.Writer
 	return maxWidth
 }
 
+func (o *OHLC) getOHLCRect() rect {
+	x, y, w, h := o.GetInnerRect()
+
+	if o.volSize < h {
+		h -= o.volSize
+	}
+
+	return rect{x: x, y: y, w: w, h: h}
+}
+
+func (o *OHLC) getVolRect() rect {
+	x, y, w, h := o.GetInnerRect()
+	ohlcRect := o.getOHLCRect()
+
+	if o.volSize >= h {
+		return rect{x: x, y: y + h, w: w, h: 0}
+	}
+
+	h = o.volSize
+	y += ohlcRect.h
+
+	return rect{x: x, y: y, w: w, h: h}
+}
+
 // Draw implements tview.Primitive.
 func (o *OHLC) Draw(screen tcell.Screen) {
-	x, y, width, height := o.GetInnerRect()
-
-	scale := scale.NewLinear()
+	ohlcRect := o.getOHLCRect()
+	volRect := o.getVolRect()
+	ohlcScale := scale.NewLinear()
+	volScale := scale.NewLinear()
 	spacing := o.Spacing()
 	items := o.Items()
 	offset := o.Offset()
@@ -290,12 +303,14 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 	if l := len(items); l > 0 {
 		ohlc := items[l-1]
 
-		title := fmt.Sprintf(" O=%s H=%s L=%s C=%s TS=%s ", ohlc.O, ohlc.H, ohlc.L, ohlc.C, ohlc.Timestamp.Format("2006-01-02T15:04:05"))
+		title := fmt.Sprintf(" O=%s H=%s L=%s C=%s V=%s TS=%s ", ohlc.O, ohlc.H, ohlc.L, ohlc.C, ohlc.V, ohlc.Timestamp.Format("2006-01-02T15:04:05"))
 
 		o.SetTitle(title)
 	}
 
 	o.DrawForSubclass(screen, o)
+
+	width := ohlcRect.w
 
 	maxCount := width / spacing
 
@@ -303,9 +318,10 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 		items = items[l-maxCount:]
 	}
 
-	scale.SetSize(height)
+	ohlcScale.SetSize(ohlcRect.h)
+	volScale.SetSize(volRect.h)
 
-	scaled := newScaledItems(items, scale)
+	scaled := newScaledItems(items, ohlcScale, volScale)
 	logger := o.Logger()
 
 	axisYWidth := 0
@@ -317,7 +333,27 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 	}
 
 	if len(scaled) > 0 {
-		axisYWidth = o.drawAxisY(screen, scale, logger, lastItem)
+		w1 := o.drawAxisY(screen, logger, ohlcScale, ohlcRect, tcell.ColorDarkCyan, func() (decimal.Decimal, bool) {
+			if lastItem == nil {
+				return decimal.Zero, false
+			}
+
+			return lastItem.C, true
+		})
+
+		w2 := o.drawAxisY(screen, logger, volScale, volRect, tcell.ColorDarkBlue, func() (decimal.Decimal, bool) {
+			if lastItem == nil {
+				return decimal.Zero, false
+			}
+
+			return lastItem.V, true
+		})
+
+		if w2 > w1 {
+			axisYWidth = w2
+		} else {
+			axisYWidth = w1
+		}
 	}
 
 	width -= axisYWidth
@@ -327,6 +363,7 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 
 	if l := len(scaled); l > maxCount {
 		scaled = scaled[l-maxCount:]
+		items = items[l-maxCount:]
 	}
 
 	if width < 0 {
@@ -337,8 +374,14 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 
 	runes := o.Runes()
 
+	// We are using special block characters to display quarters so we need
+	// to resize our scale after we've drawn the axis.
+	numVolFractions := 4
+	volScale.SetSize(volRect.h * numVolFractions)
+
 	for i, ohlc := range scaled {
 		o, h, l, c := ohlc.O, ohlc.H, ohlc.L, ohlc.C
+		v := volScale.Value(items[i].V)
 
 		style := tcell.StyleDefault
 
@@ -350,14 +393,13 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 			a, b = b, a
 		}
 
-		xx := x + i*spacing + (width - len(scaled)*spacing)
-		_ = y
+		xx := ohlcRect.x + i*spacing + (width - len(scaled)*spacing)
 
 		fmt.Fprintln(logger, "ohlc", i, o, h, l, c)
 
 		for j := h; j >= l; j-- {
 			style := style
-			yy := y + height - j
+			yy := ohlcRect.y + ohlcRect.h - j
 
 			isHigh := j == h
 			isLow := j == l
@@ -401,7 +443,41 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 
 			screen.SetContent(xx, yy, ch, nil, style)
 		}
+
+		if volRect.h > 0 {
+			volFullSteps := v / numVolFractions
+			volRemFrac := v % numVolFractions
+
+			volStyle := style.Foreground(tcell.ColorDarkBlue)
+
+			for j := 0; j < volFullSteps; j++ {
+				yy := volRect.y + volRect.h - j - 1
+				screen.SetContent(xx, yy, runes.Block4, nil, volStyle)
+			}
+
+			if volRemFrac > 0 {
+				var ch rune
+
+				switch volRemFrac {
+				case 1:
+					ch = runes.Block1
+				case 2:
+					ch = runes.Block2
+				case 3:
+					ch = runes.Block3
+				default:
+					ch = ' '
+				}
+
+				yy := volRect.y + volRect.h - volFullSteps - 1
+				screen.SetContent(xx, yy, ch, nil, volStyle)
+			}
+		}
 	}
+}
+
+type rect struct {
+	x, y, w, h int
 }
 
 type nopWriter struct{}

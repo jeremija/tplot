@@ -1,6 +1,10 @@
 package scale
 
-import "github.com/shopspring/decimal"
+import (
+	"math"
+
+	"github.com/shopspring/decimal"
+)
 
 // Linear represents a linear scale.
 type Linear struct {
@@ -30,7 +34,24 @@ func (a *Linear) SetSize(size int) {
 	a.size = size
 }
 
-func (a *Linear) Step() decimal.Decimal {
+func (a *Linear) Reverse(i int) decimal.Decimal {
+	return a.min.Add(decimal.New(int64(i), 0).Mul(a.step()))
+}
+
+func (a *Linear) NumDecimals() int {
+	step := a.step()
+	stepFloat, _ := step.Float64()
+
+	numDecs := 0
+
+	if f := math.Log10(stepFloat); f < 0 {
+		numDecs = int(math.Abs(f))
+	}
+
+	return numDecs
+}
+
+func (a *Linear) step() decimal.Decimal {
 	step := decimal.Zero
 
 	if s := a.size - 1; s > 0 {

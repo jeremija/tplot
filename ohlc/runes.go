@@ -14,6 +14,10 @@ type Runes struct {
 	Close         rune
 	Thick         rune
 	Thin          rune
+	Block1        rune
+	Block2        rune
+	Block3        rune
+	Block4        rune
 }
 
 // DefaultRunes contains the default runes using the box drawing characters.
@@ -38,4 +42,8 @@ var DefaultRunes = Runes{
 	Close:         '╿',
 	Thick:         '┃',
 	Thin:          '│',
+	Block1:        '▃',
+	Block2:        '▄',
+	Block3:        '▆',
+	Block4:        '█',
 }
