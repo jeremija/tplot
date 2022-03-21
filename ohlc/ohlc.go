@@ -3,6 +3,7 @@ package ohlc
 import (
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"sync"
 
@@ -23,7 +24,7 @@ type OHLC struct {
 	logger  io.Writer
 	runes   Runes
 
-	volSize int
+	volFrac float64
 }
 
 // New creates a new instance of the OHLC component.
@@ -32,7 +33,7 @@ func New() *OHLC {
 		Box:     tview.NewBox(),
 		runes:   DefaultRunes,
 		spacing: 1,
-		volSize: 10,
+		volFrac: 0.2,
 	}
 }
 
@@ -197,13 +198,17 @@ func (o *OHLC) MouseHandler() func(action tview.MouseAction, event *tcell.EventM
 	})
 }
 
+type value struct {
+	decimal decimal.Decimal
+	valid   bool
+}
+
 // drawOHLCAxisY draws the Y axis.
-func (o *OHLC) drawAxisY(screen tcell.Screen, log io.Writer, scale *scale.Linear, r rect, color tcell.Color, getValue func() (decimal.Decimal, bool)) int {
+func (o *OHLC) drawAxisY(screen tcell.Screen, log io.Writer, scale *scale.Linear, r rect, color tcell.Color, val value) int {
 	var current int
 
-	currentVal, lastValOK := getValue()
-	if lastValOK {
-		current = scale.Value(currentVal)
+	if val.valid {
+		current = scale.Value(val.decimal)
 	}
 
 	// numDecs contains the number of decimals spot to represent the axis.
@@ -214,13 +219,13 @@ func (o *OHLC) drawAxisY(screen tcell.Screen, log io.Writer, scale *scale.Linear
 	vals := make([]string, r.h)
 
 	for i := 0; i < r.h; i++ {
-		val := scale.Reverse(i)
+		rev := scale.Reverse(i)
 
-		if lastValOK && i == current {
-			val = currentVal
+		if val.valid && i == current {
+			rev = val.decimal
 		}
 
-		valFloat, _ := val.Float64()
+		valFloat, _ := rev.Float64()
 
 		// No decimals, ok for large values, might need some readjusting.
 		valStr := strconv.FormatFloat(valFloat, 'f', numDecs, 64)
@@ -245,7 +250,7 @@ func (o *OHLC) drawAxisY(screen tcell.Screen, log io.Writer, scale *scale.Linear
 
 		currentStyle := style
 
-		if lastValOK && i == current {
+		if val.valid && i == current {
 			currentStyle = tcell.StyleDefault
 		}
 
@@ -260,25 +265,37 @@ func (o *OHLC) drawAxisY(screen tcell.Screen, log io.Writer, scale *scale.Linear
 	return maxWidth
 }
 
-func (o *OHLC) getOHLCRect() rect {
+func (o *OHLC) volSize() int {
+	_, _, _, h := o.GetInnerRect()
+
+	v := int(math.Floor(float64(h) * o.volFrac))
+
+	if v < 0 {
+		return 0
+	}
+
+	if v > h {
+		return h
+	}
+
+	return v
+}
+
+func (o *OHLC) ohlcRect() rect {
 	x, y, w, h := o.GetInnerRect()
 
-	if o.volSize < h {
-		h -= o.volSize
-	}
+	h -= o.volSize()
 
 	return rect{x: x, y: y, w: w, h: h}
 }
 
-func (o *OHLC) getVolRect() rect {
+func (o *OHLC) volRect() rect {
 	x, y, w, h := o.GetInnerRect()
-	ohlcRect := o.getOHLCRect()
+	ohlcRect := o.ohlcRect()
 
-	if o.volSize >= h {
-		return rect{x: x, y: y + h, w: w, h: 0}
-	}
+	volSize := o.volSize()
 
-	h = o.volSize
+	h = volSize
 	y += ohlcRect.h
 
 	return rect{x: x, y: y, w: w, h: h}
@@ -286,8 +303,8 @@ func (o *OHLC) getVolRect() rect {
 
 // Draw implements tview.Primitive.
 func (o *OHLC) Draw(screen tcell.Screen) {
-	ohlcRect := o.getOHLCRect()
-	volRect := o.getVolRect()
+	ohlcRect := o.ohlcRect()
+	volRect := o.volRect()
 	ohlcScale := scale.NewLinear()
 	volScale := scale.NewLinear()
 	spacing := o.Spacing()
@@ -333,21 +350,18 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 	}
 
 	if len(scaled) > 0 {
-		w1 := o.drawAxisY(screen, logger, ohlcScale, ohlcRect, tcell.ColorDarkCyan, func() (decimal.Decimal, bool) {
-			if lastItem == nil {
-				return decimal.Zero, false
-			}
+		lastC := value{}
+		lastV := value{}
 
-			return lastItem.C, true
-		})
+		if lastItem != nil {
+			lastC.decimal = lastItem.C
+			lastC.valid = true
+			lastV.decimal = lastItem.V
+			lastV.valid = true
+		}
 
-		w2 := o.drawAxisY(screen, logger, volScale, volRect, tcell.ColorDarkBlue, func() (decimal.Decimal, bool) {
-			if lastItem == nil {
-				return decimal.Zero, false
-			}
-
-			return lastItem.V, true
-		})
+		w1 := o.drawAxisY(screen, logger, ohlcScale, ohlcRect, tcell.ColorDarkCyan, lastC)
+		w2 := o.drawAxisY(screen, logger, volScale, volRect, tcell.ColorDarkBlue, lastV)
 
 		if w2 > w1 {
 			axisYWidth = w2
@@ -450,8 +464,8 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 
 			volStyle := style.Foreground(tcell.ColorDarkBlue)
 
-			for j := 0; j < volFullSteps; j++ {
-				yy := volRect.y + volRect.h - j - 1
+			for j := 1; j <= volFullSteps; j++ {
+				yy := volRect.y + volRect.h - j
 				screen.SetContent(xx, yy, runes.Block4, nil, volStyle)
 			}
 
