@@ -168,17 +168,13 @@ type value struct {
 	valid   bool
 }
 
-func (o *OHLC) getAxisWidth(scale *scale.Linear, r rect) int {
+func (o *OHLC) getAxisWidth(scale *scale.Linear) int {
 	// numDecs contains the number of decimals spot to represent the axis.
 	numDecs := scale.NumDecimals() + 2
 
 	_, max := scale.Range()
 
 	size := len(max.Round(0).String()) + 1 + numDecs
-
-	if r.w < size {
-		return 0 // hide axis when no room.
-	}
 
 	return size
 }
@@ -321,11 +317,13 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 	ohlcScale.SetRange(ohlcRange.min, ohlcRange.max)
 	volScale.SetRange(volRange.min, volRange.max)
 
-	axisYWidth := 0
+	drawYAxis := true
 
 	if len(items) > 0 {
-		w1 := o.getAxisWidth(ohlcScale, ohlcRect)
-		w2 := o.getAxisWidth(volScale, volRect)
+		axisYWidth := 0
+
+		w1 := o.getAxisWidth(ohlcScale)
+		w2 := o.getAxisWidth(volScale)
 
 		if w2 > w1 {
 			axisYWidth = w2
@@ -333,20 +331,23 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 			axisYWidth = w1
 		}
 
-		width -= axisYWidth
+		drawYAxis = width-axisYWidth > 0
 
-		// We need to readjust the maxCount after taking account the axis width.
-		maxCount = width / spacing
+		if drawYAxis {
+			width -= axisYWidth
 
-		// If we didn't have enough space, we need to make the slice smaller and
-		// find min/max again.
-		if l := len(items); l > maxCount {
-			items = items[l-maxCount:]
+			// We need to readjust the maxCount after taking account the axis width.
+			maxCount = width / spacing
 
-			ohlcRange, volRange = findRanges(items)
+			// If we didn't have enough space, we need to make the slice smaller and
+			// find min/max again.
+			if l := len(items); l > maxCount {
+				items = items[l-maxCount:]
 
-			ohlcScale.SetRange(ohlcRange.min, ohlcRange.max)
-			volScale.SetRange(volRange.min, volRange.max)
+				ohlcRange, volRange = findRanges(items)
+				ohlcScale.SetRange(ohlcRange.min, ohlcRange.max)
+				volScale.SetRange(volRange.min, volRange.max)
+			}
 		}
 	}
 
@@ -359,7 +360,7 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 		lastItem = &items[l-1]
 	}
 
-	if len(scaled) > 0 {
+	if len(scaled) > 0 && drawYAxis {
 		lastC := value{}
 		lastV := value{}
 
