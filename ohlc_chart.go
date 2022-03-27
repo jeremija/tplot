@@ -17,17 +17,16 @@ type OHLCChart struct {
 	ohlcCandles *OHLCCandles
 	ohlcAxis    *Axis
 
-	volBars *Bars
-	volAxis *Axis
+	volumeBars *Bars
+	volumeAxis *Axis
 
-	items     []OHLCItem
-	offset    int
-	spacing   int
-	logger    io.Writer
-	ohlcRunes OHLCRunes
-	volRunes  []rune
+	items  []OHLC
+	offset int
+	logger io.Writer
 
-	volFrac float64
+	// volumeHeightFraction is a number between 0 and 1 that determines how much
+	// of the layout should be taken by the OHLC chart.
+	volumeHeightFraction float64
 }
 
 // NewOHLCChart creates a new instance of the OHLC component.
@@ -38,16 +37,83 @@ func NewOHLCChart() *OHLCChart {
 		ohlcCandles: NewOHLCCandles(),
 		ohlcAxis:    NewAxis(),
 
-		volBars: NewBars(),
-		volAxis: NewAxis(),
+		volumeBars: NewBars(),
+		volumeAxis: NewAxis(),
 
-		ohlcRunes: DefaultOHLCRunes,
-		volRunes:  DefaultBarRunes,
-		spacing:   1,
-		volFrac:   0.2,
+		volumeHeightFraction: 0.2,
 	}
 
+	ohlc.SetVolumeBarsStyle(tcell.StyleDefault.Foreground(tcell.ColorDarkBlue))
+
 	return ohlc
+}
+
+func (o *OHLCChart) SetVolumeHeight(fraction float64) {
+	if fraction < 0 {
+		fraction = 0
+	}
+
+	if fraction > 1 {
+		fraction = 1
+	}
+
+	o.volumeHeightFraction = fraction
+}
+
+func (o *OHLCChart) SetVolumeBarsRunes(runes []rune) {
+	o.volumeBars.SetRunes(runes)
+}
+
+func (o *OHLCChart) VolumeBarsRunes() []rune {
+	return o.volumeBars.Runes()
+}
+
+func (o *OHLCChart) SetOHLCCandlesRunes(runes OHLCRunes) {
+	o.ohlcCandles.SetRunes(runes)
+}
+
+func (o *OHLCChart) OHLCCandlesRunes() OHLCRunes {
+	return o.ohlcCandles.Runes()
+}
+
+func (o *OHLCChart) SetPositiveStyle(positiveStyle tcell.Style) {
+	o.ohlcCandles.SetPositiveStyle(positiveStyle)
+}
+
+func (o *OHLCChart) PositiveStyle() tcell.Style {
+	return o.ohlcCandles.PositiveStyle()
+}
+
+func (o *OHLCChart) SetNegativeStyle(negativeStyle tcell.Style) {
+	o.ohlcCandles.SetNegativeStyle(negativeStyle)
+}
+
+func (o *OHLCChart) NegativeStyle() tcell.Style {
+	return o.ohlcCandles.NegativeStyle()
+}
+
+func (o *OHLCChart) SetVolumeBarsStyle(style tcell.Style) {
+	o.volumeBars.SetStyle(style)
+}
+
+func (o *OHLCChart) VolumeBarsStyle() tcell.Style {
+	return o.volumeBars.Style()
+}
+
+func (o *OHLCChart) SetVolumeAxisStyle(style tcell.Style) {
+	o.volumeAxis.SetStyle(style)
+}
+
+func (o *OHLCChart) VolumeAxisStyle() tcell.Style {
+	return o.volumeAxis.Style()
+}
+
+func (o *OHLCChart) SetOHLCAxisStyle(style tcell.Style) {
+	o.ohlcAxis.SetStyle(style)
+}
+
+func (o *OHLCChart) OHLCAxisStyle() tcell.Style {
+	return o.ohlcAxis.Style()
 }
 
 // SetLogger sets the logger for debugging.
@@ -69,32 +135,9 @@ func (o *OHLCChart) Offset() int {
 	return o.offset
 }
 
-// AddOffset adds delta to the current offset.
-func (o *OHLCChart) AddOffset(delta int) {
-	delta = o.offset + delta
-
-	o.setOffset(delta)
-}
-
-// SetOffset sets the scroll offset for OHLC data.
+// SetOffset sets the scroll offset for OHLC data. It ensures it's always less
+// than the size of the items and is never negative.
 func (o *OHLCChart) SetOffset(offset int) {
-	o.setOffset(offset)
-}
-
-// SetRunes sets the runes used to plot the chart.
-func (o *OHLCChart) SetRunes(ohlcRunes OHLCRunes, volRunes []rune) {
-	o.ohlcRunes = ohlcRunes
-	o.volRunes = volRunes
-}
-
-// Runes returns the current set of runes used to plot the chart.
-func (o *OHLCChart) Runes() (ohlcRunes OHLCRunes, volRunes []rune) {
-	return o.ohlcRunes, o.volRunes
-}
-
-// setOffset sets the offset, but it ensures it's always less than the size of
-// the items and is never negative.
-func (o *OHLCChart) setOffset(offset int) {
 	if l := len(o.items); offset >= l {
 		offset = l - 1
 	}
@@ -106,28 +149,34 @@ func (o *OHLCChart) setOffset(offset int) {
 	o.offset = offset
 }
 
+func (o *OHLCChart) AddOffset(delta int) {
+	o.SetOffset(o.offset + delta)
+}
+
 // SetItems sets the OHLC data.
-func (o *OHLCChart) SetItems(items OHLCItems) {
+func (o *OHLCChart) SetItems(items []OHLC) {
 	o.items = items
 }
 
 // Items returns the current OHLC data.
-func (o *OHLCChart) Items() OHLCItems {
+func (o *OHLCChart) Items() []OHLC {
 	return o.items
 }
 
 // SetSpacing sets the chart spacing.
 func (o *OHLCChart) SetSpacing(spacing int) {
-	if spacing <= 0 {
-		spacing = 1
-	}
+	o.ohlcCandles.SetSpacing(spacing)
+	o.volumeBars.SetSpacing(spacing)
+}
 
-	o.spacing = spacing
+func (o *OHLCChart) AddSpacing(delta int) {
+	o.ohlcCandles.SetSpacing(o.ohlcCandles.Spacing() + delta)
+	o.volumeBars.SetSpacing(o.volumeBars.Spacing() + delta)
 }
 
 // Spacing returns the current spacing.
 func (o *OHLCChart) Spacing() int {
-	return o.spacing
+	return o.ohlcCandles.Spacing()
 }
 
 // MouseHandler implements tview.Primitive.
@@ -141,9 +190,9 @@ func (o *OHLCChart) InputHandler() func(event *tcell.EventKey, setFocus func(p t
 				s := len(o.Items())
 				o.SetOffset(s - 1)
 			case tcell.KeyPgUp:
-				o.AddOffset(20)
+				o.SetOffset(o.offset + 20)
 			case tcell.KeyPgDn:
-				o.AddOffset(-20)
+				o.SetOffset(o.offset - 20)
 			case tcell.KeyLeft:
 				o.AddOffset(1)
 			case tcell.KeyRight:
@@ -151,6 +200,12 @@ func (o *OHLCChart) InputHandler() func(event *tcell.EventKey, setFocus func(p t
 
 			case tcell.KeyRune:
 				switch event.Rune() {
+				case '0':
+					o.SetSpacing(1)
+				case '=':
+					o.AddSpacing(1)
+				case '-':
+					o.AddSpacing(-1)
 				case 'h':
 					o.AddOffset(1)
 				case 'l':
@@ -182,7 +237,7 @@ func (o *OHLCChart) MouseHandler() func(action tview.MouseAction, event *tcell.E
 func (o *OHLCChart) volSize() int {
 	_, _, _, h := o.GetInnerRect()
 
-	v := int(math.Floor(float64(h) * o.volFrac))
+	v := int(math.Floor(float64(h) * o.volumeHeightFraction))
 
 	if v < 0 {
 		return 0
@@ -213,6 +268,23 @@ func (o *OHLCChart) volRect() rect {
 	y += ohlcRect.h
 
 	return rect{x: x, y: y, w: w, h: h}
+}
+
+func (o *OHLCChart) ohlcRange(items []OHLC) (rng Range) {
+	for _, ohlc := range items {
+		rng = rng.Feed(ohlc.L)
+		rng = rng.Feed(ohlc.H)
+	}
+
+	return rng
+}
+
+func (o *OHLCChart) volumeRange(items []OHLC) (rng Range) {
+	for _, ohlc := range items {
+		rng = rng.Feed(ohlc.V)
+	}
+
+	return rng
 }
 
 // Draw implements tview.Primitive.
@@ -252,24 +324,24 @@ func (o *OHLCChart) Draw(screen tcell.Screen) {
 	ohlcScale.SetSize(ohlcRect.h)
 	volScale.SetSize(volRect.h)
 
-	ohlcRange := items.FindOHLCRange()
+	ohlcRange := o.ohlcRange(items)
 	ohlcScale.SetRange(ohlcRange)
 
-	volRange := items.FindVolumeRange()
+	volRange := o.volumeRange(items)
 	volScale.SetRange(volRange)
 
 	o.ohlcAxis.SetScale(ohlcScale)
 	o.ohlcAxis.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorDarkCyan))
 
-	o.volAxis.SetScale(volScale)
-	o.volAxis.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorDarkBlue))
+	o.volumeAxis.SetScale(volScale)
+	o.volumeAxis.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorDarkBlue))
 
 	drawYAxis := true
 	axisYWidth := 0
 
 	if len(items) > 0 {
 		w1 := o.ohlcAxis.CalcWidth()
-		w2 := o.volAxis.CalcWidth()
+		w2 := o.volumeAxis.CalcWidth()
 
 		if w2 > w1 {
 			axisYWidth = w2
@@ -283,7 +355,7 @@ func (o *OHLCChart) Draw(screen tcell.Screen) {
 			width -= axisYWidth
 
 			o.ohlcAxis.SetRect(ohlcRect.x+width, ohlcRect.y, axisYWidth, ohlcRect.h)
-			o.volAxis.SetRect(volRect.x+width, volRect.y, axisYWidth, volRect.h)
+			o.volumeAxis.SetRect(volRect.x+width, volRect.y, axisYWidth, volRect.h)
 
 			// We need to readjust the maxCount after taking account the axis width.
 			maxCount = width / spacing
@@ -293,10 +365,10 @@ func (o *OHLCChart) Draw(screen tcell.Screen) {
 			if l := len(items); l > maxCount {
 				items = items[l-maxCount:]
 
-				ohlcRange = items.FindOHLCRange()
+				ohlcRange = o.ohlcRange(items)
 				ohlcScale.SetRange(ohlcRange)
 
-				volRange = items.FindVolumeRange()
+				volRange = o.volumeRange(items)
 				volScale.SetRange(volRange)
 			}
 		}
@@ -304,7 +376,7 @@ func (o *OHLCChart) Draw(screen tcell.Screen) {
 
 	logger := o.Logger()
 
-	var lastItem *OHLCItem
+	var lastItem *OHLC
 
 	if l := len(items); l > 0 {
 		lastItem = &items[l-1]
@@ -324,8 +396,8 @@ func (o *OHLCChart) Draw(screen tcell.Screen) {
 		o.ohlcAxis.SetHighlight(lastC)
 		o.ohlcAxis.Draw(screen)
 
-		o.volAxis.SetHighlight(lastV)
-		o.volAxis.Draw(screen)
+		o.volumeAxis.SetHighlight(lastV)
+		o.volumeAxis.Draw(screen)
 	}
 
 	if width < 0 {
@@ -334,12 +406,9 @@ func (o *OHLCChart) Draw(screen tcell.Screen) {
 
 	fmt.Fprintln(logger, "log start", len(items))
 
-	o.ohlcCandles.SetPositiveStyle(tcell.StyleDefault.Foreground(tcell.ColorGreen))
-	o.ohlcCandles.SetNegativeStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
 	o.ohlcCandles.SetRect(ohlcRect.x, ohlcRect.y, width, ohlcRect.h)
-	o.ohlcCandles.SetRunes(o.ohlcRunes)
 	o.ohlcCandles.SetScale(ohlcScale)
-	o.ohlcCandles.SetOHLCItems(items)
+	o.ohlcCandles.SetData(items)
 	o.ohlcCandles.Draw(screen)
 
 	volValues := make([]decimal.Decimal, len(items))
@@ -348,12 +417,10 @@ func (o *OHLCChart) Draw(screen tcell.Screen) {
 		volValues[i] = item.V
 	}
 
-	o.volBars.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorDarkBlue))
-	o.volBars.SetRect(volRect.x, volRect.y, width, volRect.h)
-	o.volBars.SetRunes(o.volRunes)
-	o.volBars.SetScale(volScale)
-	o.volBars.SetValues(volValues)
-	o.volBars.Draw(screen)
+	o.volumeBars.SetRect(volRect.x, volRect.y, width, volRect.h)
+	o.volumeBars.SetScale(volScale)
+	o.volumeBars.SetData(volValues)
+	o.volumeBars.Draw(screen)
 }
 
 type rect struct {

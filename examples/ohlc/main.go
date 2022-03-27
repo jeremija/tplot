@@ -51,8 +51,8 @@ func main() {
 		return decimal.RequireFromString(string(n))
 	}
 
-	mustFloat := func(n json.Number) float64 {
-		v, err := n.Float64()
+	mustInt64 := func(n json.Number) int64 {
+		v, err := n.Int64()
 		if err != nil {
 			panic(err)
 		}
@@ -60,23 +60,23 @@ func main() {
 		return v
 	}
 
-	items := make(tplot.OHLCItems, len(obj.Result["86400"]))
+	items := make([]tplot.OHLC, len(obj.Result["86400"]))
 
 	for i, r := range obj.Result["86400"] {
-		ts := mustFloat(r[0])
+		ts := time.Unix(mustInt64(r[0]), 0)
 		o := mustDec(r[1])
 		h := mustDec(r[2])
 		l := mustDec(r[3])
 		c := mustDec(r[4])
 		v := mustDec(r[5])
 
-		items[i] = tplot.OHLCItem{
+		items[i] = tplot.OHLC{
 			O:         o,
 			H:         h,
 			L:         l,
 			C:         c,
 			V:         v,
-			Timestamp: time.Unix(int64(ts), 0),
+			Timestamp: ts,
 		}
 	}
 

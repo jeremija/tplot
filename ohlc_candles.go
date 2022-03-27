@@ -1,6 +1,8 @@
 package tplot
 
 import (
+	"time"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -9,8 +11,7 @@ type OHLCCandles struct {
 	*tview.Box
 	scale Scale
 
-	items []OHLCItem
-	// scaledItems []scaledOHLCItem
+	data    []OHLC
 	rng     Range
 	spacing int
 
@@ -29,7 +30,20 @@ func NewOHLCCandles() *OHLCCandles {
 		spacing:       1,
 		negativeStyle: style.Foreground(tcell.ColorRed),
 		positiveStyle: style.Foreground(tcell.ColorGreen),
+		runes:         DefaultOHLCRunes,
 	}
+}
+
+func (o *OHLCCandles) SetSpacing(spacing int) {
+	if spacing <= 0 {
+		spacing = 1
+	}
+
+	o.spacing = spacing
+}
+
+func (o *OHLCCandles) Spacing() int {
+	return o.spacing
 }
 
 func (o *OHLCCandles) SetPositiveStyle(positiveStyle tcell.Style) {
@@ -66,7 +80,7 @@ func (o *OHLCCandles) Runes() OHLCRunes {
 	return o.runes
 }
 
-func (o *OHLCCandles) calcRange(items []OHLCItem) (rng Range) {
+func (o *OHLCCandles) calcRange(items []OHLC) (rng Range) {
 	for _, item := range items {
 		rng = rng.Feed(item.L)
 		rng = rng.Feed(item.H)
@@ -75,9 +89,9 @@ func (o *OHLCCandles) calcRange(items []OHLCItem) (rng Range) {
 	return rng
 }
 
-func (o *OHLCCandles) SetOHLCItems(items []OHLCItem) {
-	o.items = items
-	o.rng = o.calcRange(items)
+func (o *OHLCCandles) SetData(data []OHLC) {
+	o.data = data
+	o.rng = o.calcRange(data)
 }
 
 func (o *OHLCCandles) Draw(screen tcell.Screen) {
@@ -86,7 +100,7 @@ func (o *OHLCCandles) Draw(screen tcell.Screen) {
 	x, y, w, h := o.GetInnerRect()
 	scale := o.scale
 	runes := o.runes
-	items := o.items
+	data := o.data
 	spacing := o.spacing
 	maxCount := w / spacing
 
@@ -97,14 +111,29 @@ func (o *OHLCCandles) Draw(screen tcell.Screen) {
 		return
 	}
 
-	scaled := newScaledOHLCItems(items, scale)
+	type scaledOHLC struct {
+		ts         time.Time
+		O, H, L, C int
+	}
+
+	scaled := make([]scaledOHLC, len(data))
+
+	for i, item := range data {
+		scaled[i] = scaledOHLC{
+			O:  scale.Value(item.O),
+			H:  scale.Value(item.H),
+			L:  scale.Value(item.L),
+			C:  scale.Value(item.C),
+			ts: item.Timestamp,
+		}
+	}
 
 	if l := len(scaled); l > maxCount {
 		// TODO update scale range.
-		items = items[l-maxCount:]
+		data = data[l-maxCount:]
 		scaled = scaled[l-maxCount:]
 
-		scale.SetRange(o.calcRange(items))
+		scale.SetRange(o.calcRange(data))
 	}
 
 	for i, ohlc := range scaled {

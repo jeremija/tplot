@@ -13,7 +13,7 @@ type Bars struct {
 	spacing int
 	rng     Range
 	runes   []rune
-	values  []decimal.Decimal
+	data    []decimal.Decimal
 }
 
 var DefaultBarRunes = []rune{'▃', '▄', '▆', '█'}
@@ -29,6 +29,10 @@ func NewBars() *Bars {
 }
 
 func (b *Bars) SetSpacing(spacing int) {
+	if spacing <= 0 {
+		spacing = 1
+	}
+
 	b.spacing = spacing
 }
 
@@ -52,13 +56,13 @@ func (b *Bars) calcRange(values []decimal.Decimal) (rng Range) {
 	return rng
 }
 
-func (b *Bars) SetValues(values []decimal.Decimal) {
-	b.values = values
-	b.rng = b.calcRange(values)
+func (b *Bars) SetData(data []decimal.Decimal) {
+	b.data = data
+	b.rng = b.calcRange(data)
 }
 
 func (b *Bars) Values() []decimal.Decimal {
-	return b.values
+	return b.data
 }
 
 func (b *Bars) SetScale(scale Scale) {
@@ -80,7 +84,7 @@ func (b *Bars) Runes() []rune {
 func (b *Bars) Draw(screen tcell.Screen) {
 	b.DrawForSubclass(screen, b)
 
-	values := b.values
+	data := b.data
 	scale := b.scale
 	spacing := b.spacing
 	runes := b.runes
@@ -95,8 +99,8 @@ func (b *Bars) Draw(screen tcell.Screen) {
 
 	maxCount := w / spacing
 
-	if l := len(values); l > maxCount {
-		values = values[l-maxCount:]
+	if l := len(data); l > maxCount {
+		data = data[l-maxCount:]
 	}
 
 	if len(runes) == 0 {
@@ -110,9 +114,9 @@ func (b *Bars) Draw(screen tcell.Screen) {
 	scale.SetRange(b.rng)
 	scale.SetSize(h * numVolFractions)
 
-	for i, dec := range values {
+	for i, dec := range data {
 		v := scale.Value(dec)
-		xx := x + i*spacing + (w - len(values)*spacing)
+		xx := x + i*spacing + (w - len(data)*spacing)
 
 		volFullSteps := v / numVolFractions
 		volRemFrac := v % numVolFractions

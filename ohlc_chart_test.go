@@ -28,7 +28,7 @@ func TestOHLCChart(t *testing.T) {
 		return ts
 	}
 
-	items := []tplot.OHLCItem{
+	items := []tplot.OHLC{
 		{date("2020-01-01"), d(10), d(30), d(5), d(15), d(500)},
 		{date("2020-01-02"), d(15), d(15), d(15), d(15), d(750)},
 		{date("2020-01-03"), d(15), d(20), d(5), d(15), d(200)},
