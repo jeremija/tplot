@@ -24,6 +24,7 @@ func NewAxis() *Axis {
 	return &Axis{
 		Box:            tview.NewBox(),
 		style:          tcell.StyleDefault,
+		scale:          NewScaleLinear(),
 		highlightStyle: tcell.StyleDefault,
 	}
 }
@@ -70,10 +71,6 @@ func (a *Axis) Scale() Scale {
 
 // CalcWidth calculates the width of the axis.
 func (a *Axis) CalcWidth() int {
-	if a.scale == nil {
-		return 0
-	}
-
 	// numDecs contains the number of decimals spot to represent the axis.
 	numDecs := a.scale.NumDecimals() + 2
 
@@ -92,9 +89,6 @@ func (a *Axis) Draw(screen tcell.Screen) {
 
 	highlight := a.highlight
 	scale := a.scale
-	if scale == nil {
-		return
-	}
 
 	var highlightInt int
 
@@ -146,7 +140,6 @@ func (a *Axis) Draw(screen tcell.Screen) {
 		for i, val := range valStr {
 			xx := x + w - len(valStr) + i
 
-			// fmt.Fprintln(log, "axis y", xx, yy, string(val))
 			screen.SetContent(xx, yy, val, nil, currentStyle)
 		}
 	}
