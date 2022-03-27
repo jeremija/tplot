@@ -25,6 +25,27 @@ type scaledItem struct {
 // newScaledItems creates scaledItems from Items and scale. The scale's
 // range will be set by this function.
 func newScaledItems(ohlcs []Item, scale *scale.Linear, volScale *scale.Linear) []scaledItem {
+	ret := make([]scaledItem, len(ohlcs))
+
+	for i, ohlc := range ohlcs {
+		ret[i] = scaledItem{
+			O:  scale.Value(ohlc.O),
+			H:  scale.Value(ohlc.H),
+			L:  scale.Value(ohlc.L),
+			C:  scale.Value(ohlc.C),
+			V:  volScale.Value(ohlc.V),
+			ts: ohlc.Timestamp,
+		}
+	}
+
+	return ret
+}
+
+type decRange struct {
+	min, max decimal.Decimal
+}
+
+func findRanges(items []Item) (ohlcRange, volRange decRange) {
 	var (
 		min, max       decimal.Decimal
 		minSet, maxSet bool
@@ -33,7 +54,7 @@ func newScaledItems(ohlcs []Item, scale *scale.Linear, volScale *scale.Linear) [
 		minVolSet, maxVolSet bool
 	)
 
-	for _, ohlc := range ohlcs {
+	for _, ohlc := range items {
 		if !minSet || ohlc.L.LessThan(min) {
 			min = ohlc.L
 			minSet = true
@@ -55,21 +76,5 @@ func newScaledItems(ohlcs []Item, scale *scale.Linear, volScale *scale.Linear) [
 		}
 	}
 
-	scale.SetRange(min, max)
-	volScale.SetRange(minVol, maxVol)
-
-	ret := make([]scaledItem, len(ohlcs))
-
-	for i, ohlc := range ohlcs {
-		ret[i] = scaledItem{
-			O:  scale.Value(ohlc.O),
-			H:  scale.Value(ohlc.H),
-			L:  scale.Value(ohlc.L),
-			C:  scale.Value(ohlc.C),
-			V:  volScale.Value(ohlc.V),
-			ts: ohlc.Timestamp,
-		}
-	}
-
-	return ret
+	return decRange{min, max}, decRange{minVol, maxVol}
 }

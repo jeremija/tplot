@@ -40,6 +40,10 @@ func (a *Linear) Reverse(i int) decimal.Decimal {
 
 func (a *Linear) NumDecimals() int {
 	step := a.step()
+	if step.IsZero() {
+		return 0
+	}
+
 	stepFloat, _ := step.Float64()
 
 	numDecs := 0
@@ -55,7 +59,7 @@ func (a *Linear) step() decimal.Decimal {
 	step := decimal.Zero
 
 	if s := a.size - 1; s > 0 {
-		step = a.max.Sub(a.min).Div(decimal.New(int64(s), 0))
+		step = a.max.Sub(a.min).Div(decimal.NewFromInt(int64(s)))
 	}
 
 	return step
@@ -78,7 +82,7 @@ func (a *Linear) scale() decimal.Decimal {
 func (a *Linear) Value(v decimal.Decimal) int {
 	scale := a.scale()
 
-	ret := v.Sub(a.min).Mul(scale).IntPart() + 1
+	ret := v.Sub(a.min).Mul(scale).IntPart()
 
 	return int(ret)
 }

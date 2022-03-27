@@ -168,6 +168,21 @@ type value struct {
 	valid   bool
 }
 
+func (o *OHLC) getAxisWidth(scale *scale.Linear, r rect) int {
+	// numDecs contains the number of decimals spot to represent the axis.
+	numDecs := scale.NumDecimals() + 2
+
+	_, max := scale.Range()
+
+	size := len(max.Round(0).String()) + 1 + numDecs
+
+	if r.w < size {
+		return 0 // hide axis when no room.
+	}
+
+	return size
+}
+
 // drawOHLCAxisY draws the Y axis.
 func (o *OHLC) drawAxisY(screen tcell.Screen, log io.Writer, scale *scale.Linear, r rect, color tcell.Color, val value) int {
 	var current int
@@ -192,7 +207,6 @@ func (o *OHLC) drawAxisY(screen tcell.Screen, log io.Writer, scale *scale.Linear
 
 		valFloat, _ := rev.Float64()
 
-		// No decimals, ok for large values, might need some readjusting.
 		valStr := strconv.FormatFloat(valFloat, 'f', numDecs, 64)
 
 		if l := len(valStr); l > maxWidth {
@@ -303,10 +317,41 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 	ohlcScale.SetSize(ohlcRect.h)
 	volScale.SetSize(volRect.h)
 
-	scaled := newScaledItems(items, ohlcScale, volScale)
-	logger := o.Logger()
+	ohlcRange, volRange := findRanges(items)
+	ohlcScale.SetRange(ohlcRange.min, ohlcRange.max)
+	volScale.SetRange(volRange.min, volRange.max)
 
 	axisYWidth := 0
+
+	if len(items) > 0 {
+		w1 := o.getAxisWidth(ohlcScale, ohlcRect)
+		w2 := o.getAxisWidth(volScale, volRect)
+
+		if w2 > w1 {
+			axisYWidth = w2
+		} else {
+			axisYWidth = w1
+		}
+
+		width -= axisYWidth
+
+		// We need to readjust the maxCount after taking account the axis width.
+		maxCount = width / spacing
+
+		// If we didn't have enough space, we need to make the slice smaller and
+		// find min/max again.
+		if l := len(items); l > maxCount {
+			items = items[l-maxCount:]
+
+			ohlcRange, volRange = findRanges(items)
+
+			ohlcScale.SetRange(ohlcRange.min, ohlcRange.max)
+			volScale.SetRange(volRange.min, volRange.max)
+		}
+	}
+
+	scaled := newScaledItems(items, ohlcScale, volScale)
+	logger := o.Logger()
 
 	var lastItem *Item
 
@@ -325,24 +370,8 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 			lastV.valid = true
 		}
 
-		w1 := o.drawAxisY(screen, logger, ohlcScale, ohlcRect, tcell.ColorDarkCyan, lastC)
-		w2 := o.drawAxisY(screen, logger, volScale, volRect, tcell.ColorDarkBlue, lastV)
-
-		if w2 > w1 {
-			axisYWidth = w2
-		} else {
-			axisYWidth = w1
-		}
-	}
-
-	width -= axisYWidth
-
-	// We need to readjust the maxCount because we drew the axis.
-	maxCount = width / spacing
-
-	if l := len(scaled); l > maxCount {
-		scaled = scaled[l-maxCount:]
-		items = items[l-maxCount:]
+		o.drawAxisY(screen, logger, ohlcScale, ohlcRect, tcell.ColorDarkCyan, lastC)
+		o.drawAxisY(screen, logger, volScale, volRect, tcell.ColorDarkBlue, lastV)
 	}
 
 	if width < 0 {
@@ -355,7 +384,11 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 
 	// We are using special block characters to display quarters so we need
 	// to resize our scale after we've drawn the axis.
-	numVolFractions := 4
+	numVolFractions := len(runes.Blocks)
+	if numVolFractions == 0 {
+		numVolFractions = 1
+	}
+
 	volScale.SetSize(volRect.h * numVolFractions)
 
 	for i, ohlc := range scaled {
@@ -378,7 +411,7 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 
 		for j := h; j >= l; j-- {
 			style := style
-			yy := ohlcRect.y + ohlcRect.h - j
+			yy := ohlcRect.y + ohlcRect.h - j - 1
 
 			isHigh := j == h
 			isLow := j == l
@@ -429,24 +462,19 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 
 			volStyle := style.Foreground(tcell.ColorDarkBlue)
 
+			fullBlock := '█'
+
+			if ll := len(runes.Blocks); ll > 0 {
+				fullBlock = runes.Blocks[ll-1]
+			}
+
 			for j := 1; j <= volFullSteps; j++ {
 				yy := volRect.y + volRect.h - j
-				screen.SetContent(xx, yy, runes.Block4, nil, volStyle)
+				screen.SetContent(xx, yy, fullBlock, nil, volStyle)
 			}
 
 			if volRemFrac > 0 {
-				var ch rune
-
-				switch volRemFrac {
-				case 1:
-					ch = runes.Block1
-				case 2:
-					ch = runes.Block2
-				case 3:
-					ch = runes.Block3
-				default:
-					ch = ' '
-				}
+				ch := runes.Blocks[volRemFrac-1]
 
 				yy := volRect.y + volRect.h - volFullSteps - 1
 				screen.SetContent(xx, yy, ch, nil, volStyle)
