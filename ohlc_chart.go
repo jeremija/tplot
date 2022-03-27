@@ -349,10 +349,12 @@ func (o *OHLCChart) Draw(screen tcell.Screen) {
 			axisYWidth = w1
 		}
 
-		drawYAxis = width-axisYWidth > 0
+		widthWithoutYAxis := width - axisYWidth
+
+		drawYAxis = widthWithoutYAxis > 0
 
 		if drawYAxis {
-			width -= axisYWidth
+			width = widthWithoutYAxis
 
 			o.ohlcAxis.SetRect(ohlcRect.x+width, ohlcRect.y, axisYWidth, ohlcRect.h)
 			o.volumeAxis.SetRect(volRect.x+width, volRect.y, axisYWidth, volRect.h)

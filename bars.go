@@ -30,25 +30,28 @@ func (b *Bars) Draw(screen tcell.Screen) {
 		return
 	}
 
-	scale = scale.Copy()
-
 	if len(runes) == 0 {
 		runes = []rune{'█'}
 	}
 
 	// We are using special block characters to display quarters so we need
 	// to resize our scale after we've drawn the axis.
-	numVolFractions := len(runes)
+	numFractions := len(runes)
 
-	scale.SetRange(b.rng)
-	scale.SetSize(h * numVolFractions)
+	rng := b.calcRange(data)
+	scale.SetRange(rng)
+
+	// If we're sharing the scale with other components that can't use the
+	// fractions.
+	scale = scale.Copy()
+	scale.SetSize(h * numFractions)
 
 	for i, dec := range data {
 		v := scale.Value(dec)
 		xx := x + i*spacing + (w - len(data)*spacing)
 
-		fullSteps := v / numVolFractions
-		rem := v % numVolFractions
+		fullSteps := v / numFractions
+		rem := v % numFractions
 
 		fullBlock := runes[len(runes)-1]
 

@@ -11,7 +11,6 @@ type base struct {
 	scale       Scale
 	style       tcell.Style
 	spacing     int
-	rng         Range
 	runes       []rune
 	data        []decimal.Decimal
 	sliceMethod SliceMethod
@@ -97,7 +96,6 @@ func (b *base) DataSlice() []decimal.Decimal {
 
 func (b *base) SetData(data []decimal.Decimal) {
 	b.data = data
-	b.rng = b.calcRange(data)
 }
 
 func (b *base) Values() []decimal.Decimal {

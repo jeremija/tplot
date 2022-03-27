@@ -12,7 +12,7 @@ type Scale interface {
 	// SetSize sets the size.
 	SetSize(int)
 	// SetRange sets the range of the values.
-	SetRange(rng Range)
+	SetRange(Range)
 	// Range returns the current range.
 	Range() Range
 	// NumDecimals returns the number of decimals
