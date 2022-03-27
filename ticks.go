@@ -4,19 +4,23 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-type Bars struct {
+type Ticks struct {
 	*base
 }
 
-var DefaultBarsRunes = []rune{'▃', '▄', '▆', '█'}
+var DefaultTicksRunes = []rune{'⎽', '⎼', '—', '⎻', '⎺'}
 
-func NewBars() *Bars {
-	return &Bars{
-		base: newBase(DefaultBarsRunes),
+func NewTicks() *Ticks {
+	bars := NewBars()
+
+	bars.SetRunes(DefaultTicksRunes)
+
+	return &Ticks{
+		base: newBase(DefaultTicksRunes),
 	}
 }
 
-func (b *Bars) Draw(screen tcell.Screen) {
+func (b *Ticks) Draw(screen tcell.Screen) {
 	b.DrawForSubclass(screen, b)
 
 	data := b.DataSlice()
@@ -33,12 +37,12 @@ func (b *Bars) Draw(screen tcell.Screen) {
 	scale = scale.Copy()
 
 	if len(runes) == 0 {
-		runes = []rune{'█'}
+		runes = []rune{'-'}
 	}
 
 	// We are using special block characters to display quarters so we need
 	// to resize our scale after we've drawn the axis.
-	numVolFractions := len(runes)
+	numVolFractions := len(b.runes)
 
 	scale.SetRange(b.rng)
 	scale.SetSize(h * numVolFractions)
@@ -50,16 +54,9 @@ func (b *Bars) Draw(screen tcell.Screen) {
 		fullSteps := v / numVolFractions
 		rem := v % numVolFractions
 
-		fullBlock := runes[len(runes)-1]
-
-		for j := 1; j <= fullSteps; j++ {
-			yy := y + h - j
-			screen.SetContent(xx, yy, fullBlock, nil, style)
-		}
+		ch := runes[rem]
 
 		if rem > 0 {
-			ch := runes[rem-1]
-
 			yy := y + h - fullSteps - 1
 			screen.SetContent(xx, yy, ch, nil, style)
 		}

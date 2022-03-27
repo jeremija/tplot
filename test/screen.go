@@ -59,7 +59,7 @@ func (s *Screen) Content() string {
 	ret := make([]string, len(s.content))
 
 	for i, row := range s.content {
-		ret[i] = strings.TrimSuffix(string(row), " ")
+		ret[i] = strings.TrimRight(string(row), " ")
 	}
 
 	return strings.Join(ret, "\n")

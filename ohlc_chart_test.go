@@ -74,9 +74,11 @@ func TestOHLCChart(t *testing.T) {
         ██  █ 360.00
         ██ ▄█ 200.00`
 
-	fmt.Println("===")
+	fmt.Println("== expected ==")
+	fmt.Println(exp)
+	fmt.Println("==  actual  ==")
 	fmt.Println(scr.Content())
-	fmt.Println("===")
+	fmt.Println("==============")
 
 	assert.Equal(t, exp, "\n"+scr.Content())
 }
