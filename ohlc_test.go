@@ -1,18 +1,18 @@
-package ohlc_test
+package tplot_test
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/jeremija/tplot/ohlc"
+	"github.com/jeremija/tplot"
 	"github.com/jeremija/tplot/test"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestOHLC(t *testing.T) {
-	p := ohlc.New()
+	p := tplot.NewOHLC()
 	scr := test.NewScreen()
 
 	d := func(val int64) decimal.Decimal {
@@ -28,7 +28,7 @@ func TestOHLC(t *testing.T) {
 		return ts
 	}
 
-	items := []ohlc.Item{
+	items := []tplot.OHLCItem{
 		{date("2020-01-01"), d(10), d(30), d(5), d(15), d(500)},
 		{date("2020-01-02"), d(15), d(15), d(15), d(15), d(750)},
 		{date("2020-01-03"), d(15), d(20), d(5), d(15), d(200)},
@@ -56,8 +56,8 @@ func TestOHLC(t *testing.T) {
         │ ╷╻╷  19.13
         │ │┃│  18.04
         │ │┃│  16.96
-        │ │┃│  15.00
-        ╽─┼┃┼  14.78
+        │ │┃│  15.87
+        ╽─┼┃┼  15.00
         ┃ │┃│  13.70
         ┃ │┃│  12.61
         ┃ │┃│  11.52
@@ -67,12 +67,13 @@ func TestOHLC(t *testing.T) {
         │ │ │   7.17
         │ │ │   6.09
         ╵ ╵ ╵   5.00
-            █1000.00
+            ▆1000.00
             █ 840.00
-         █  █ 680.00
-        ▃█  █ 520.00
+         ▆  █ 680.00
+         █  █ 520.00
         ██  █ 360.00
-        ██▃▆█ 200.00`
+        ██ ▄█ 200.00`
+
 	fmt.Println("===")
 	fmt.Println(scr.Content())
 	fmt.Println("===")

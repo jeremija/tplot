@@ -1,7 +1,7 @@
-package ohlc
+package tplot
 
-// Runes contains definitions for each OHLC drawing.
-type Runes struct {
+// OLHCRunes contains definitions for each OHLC drawing.
+type OLHCRunes struct {
 	Same          rune
 	HighOpenClose rune
 	LowOpenClose  rune
@@ -17,7 +17,7 @@ type Runes struct {
 	Blocks        []rune
 }
 
-// DefaultRunes contains the default runes using the box drawing characters.
+// DefaultOHLCRunes contains the default runes using the box drawing characters.
 // Examples:
 //
 //     ╽   ╷ ╷     │
@@ -26,7 +26,7 @@ type Runes struct {
 //     │
 //
 // See more at: https://en.wikipedia.org/wiki/Box-drawing_character
-var DefaultRunes = Runes{
+var DefaultOHLCRunes = OLHCRunes{
 	Same:          '─',
 	HighOpenClose: '┬',
 	LowOpenClose:  '┴',

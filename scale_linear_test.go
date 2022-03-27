@@ -1,15 +1,15 @@
-package scale_test
+package tplot_test
 
 import (
 	"testing"
 
-	"github.com/jeremija/tplot/scale"
+	"github.com/jeremija/tplot"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLiner(t *testing.T) {
-	l := scale.NewLinear()
+	l := tplot.NewScaleLinear()
 
 	min := decimal.NewFromInt(5)
 	max := decimal.NewFromInt(10)

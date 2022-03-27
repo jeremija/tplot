@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/jeremija/tplot/ohlc"
+	"github.com/jeremija/tplot"
 	"github.com/rivo/tview"
 	"github.com/shopspring/decimal"
 )
@@ -27,7 +27,7 @@ func main() {
 		logger = log
 	}
 
-	ohlcPanel := ohlc.New()
+	ohlcPanel := tplot.NewOHLC()
 	ohlcPanel.SetLogger(logger)
 
 	f, err := os.Open("ohlc.json")
@@ -60,7 +60,7 @@ func main() {
 		return v
 	}
 
-	items := make([]ohlc.Item, len(obj.Result["86400"]))
+	items := make(tplot.OHLCItems, len(obj.Result["86400"]))
 
 	for i, r := range obj.Result["86400"] {
 		ts := mustFloat(r[0])
@@ -70,7 +70,7 @@ func main() {
 		c := mustDec(r[4])
 		v := mustDec(r[5])
 
-		items[i] = ohlc.Item{
+		items[i] = tplot.OHLCItem{
 			O:         o,
 			H:         h,
 			L:         l,

@@ -1,4 +1,4 @@
-package ohlc
+package tplot
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/jeremija/tplot/scale"
 	"github.com/rivo/tview"
 	"github.com/shopspring/decimal"
 )
@@ -16,20 +15,20 @@ import (
 type OHLC struct {
 	*tview.Box
 
-	items   []Item
+	items   []OHLCItem
 	offset  int
 	spacing int
 	logger  io.Writer
-	runes   Runes
+	runes   OLHCRunes
 
 	volFrac float64
 }
 
-// New creates a new instance of the OHLC component.
-func New() *OHLC {
+// NewOHLC creates a new instance of the OHLC component.
+func NewOHLC() *OHLC {
 	return &OHLC{
 		Box:     tview.NewBox(),
-		runes:   DefaultRunes,
+		runes:   DefaultOHLCRunes,
 		spacing: 1,
 		volFrac: 0.2,
 	}
@@ -67,12 +66,12 @@ func (o *OHLC) SetOffset(offset int) {
 }
 
 // SetRunes sets the runes used to plot the chart.
-func (o *OHLC) SetRunes(runes Runes) {
+func (o *OHLC) SetRunes(runes OLHCRunes) {
 	o.runes = runes
 }
 
 // Runes returns the current set of runes used to plot the chart.
-func (o *OHLC) Runes() Runes {
+func (o *OHLC) Runes() OLHCRunes {
 	return o.runes
 }
 
@@ -91,12 +90,12 @@ func (o *OHLC) setOffset(offset int) {
 }
 
 // SetItems sets the OHLC data.
-func (o *OHLC) SetItems(items []Item) {
+func (o *OHLC) SetItems(items OHLCItems) {
 	o.items = items
 }
 
 // Items returns the current OHLC data.
-func (o *OHLC) Items() []Item {
+func (o *OHLC) Items() OHLCItems {
 	return o.items
 }
 
@@ -168,7 +167,7 @@ type value struct {
 	valid   bool
 }
 
-func (o *OHLC) getAxisWidth(scale *scale.Linear) int {
+func (o *OHLC) getAxisWidth(scale Scale) int {
 	// numDecs contains the number of decimals spot to represent the axis.
 	numDecs := scale.NumDecimals() + 2
 
@@ -180,7 +179,7 @@ func (o *OHLC) getAxisWidth(scale *scale.Linear) int {
 }
 
 // drawOHLCAxisY draws the Y axis.
-func (o *OHLC) drawAxisY(screen tcell.Screen, log io.Writer, scale *scale.Linear, r rect, color tcell.Color, val value) int {
+func (o *OHLC) drawAxisY(screen tcell.Screen, log io.Writer, scale Scale, r rect, color tcell.Color, val value) int {
 	var current int
 
 	if val.valid {
@@ -280,8 +279,8 @@ func (o *OHLC) volRect() rect {
 func (o *OHLC) Draw(screen tcell.Screen) {
 	ohlcRect := o.ohlcRect()
 	volRect := o.volRect()
-	ohlcScale := scale.NewLinear()
-	volScale := scale.NewLinear()
+	ohlcScale := NewScaleLinear()
+	volScale := NewScaleLinear()
 	spacing := o.Spacing()
 	items := o.Items()
 	offset := o.Offset()
@@ -313,9 +312,11 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 	ohlcScale.SetSize(ohlcRect.h)
 	volScale.SetSize(volRect.h)
 
-	ohlcRange, volRange := findRanges(items)
-	ohlcScale.SetRange(ohlcRange.min, ohlcRange.max)
-	volScale.SetRange(volRange.min, volRange.max)
+	ohlcMin, ohlcMax := items.FindValueRange()
+	volMin, volMax := items.FindVolumeRange()
+
+	ohlcScale.SetRange(ohlcMin, ohlcMax)
+	volScale.SetRange(volMin, volMax)
 
 	drawYAxis := true
 
@@ -344,17 +345,19 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 			if l := len(items); l > maxCount {
 				items = items[l-maxCount:]
 
-				ohlcRange, volRange = findRanges(items)
-				ohlcScale.SetRange(ohlcRange.min, ohlcRange.max)
-				volScale.SetRange(volRange.min, volRange.max)
+				ohlcMin, ohlcMax = items.FindValueRange()
+				volMin, volMax = items.FindVolumeRange()
+
+				ohlcScale.SetRange(ohlcMin, ohlcMax)
+				volScale.SetRange(volMin, volMax)
 			}
 		}
 	}
 
-	scaled := newScaledItems(items, ohlcScale, volScale)
+	scaled := newScaledOHLCItems(items, ohlcScale, volScale)
 	logger := o.Logger()
 
-	var lastItem *Item
+	var lastItem *OHLCItem
 
 	if l := len(items); l > 0 {
 		lastItem = &items[l-1]

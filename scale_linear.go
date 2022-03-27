@@ -1,4 +1,4 @@
-package scale
+package tplot
 
 import (
 	"math"
@@ -7,38 +7,40 @@ import (
 )
 
 // Linear represents a linear scale.
-type Linear struct {
+type ScaleLinear struct {
 	min  decimal.Decimal
 	max  decimal.Decimal
 	size int
 }
 
+var _ Scale = &ScaleLinear{}
+
 // NewLinear constructs a new linear scale.
-func NewLinear() *Linear {
-	return &Linear{}
+func NewScaleLinear() *ScaleLinear {
+	return &ScaleLinear{}
 }
 
 // Size returns the scale size.
-func (a *Linear) Size() int {
+func (a *ScaleLinear) Size() int {
 	return a.size
 }
 
 // SetRange sets the scale range.
-func (a *Linear) SetRange(min, max decimal.Decimal) {
+func (a *ScaleLinear) SetRange(min, max decimal.Decimal) {
 	a.min = min
 	a.max = max
 }
 
 // SetSize sets the size.
-func (a *Linear) SetSize(size int) {
+func (a *ScaleLinear) SetSize(size int) {
 	a.size = size
 }
 
-func (a *Linear) Reverse(i int) decimal.Decimal {
+func (a *ScaleLinear) Reverse(i int) decimal.Decimal {
 	return a.min.Add(decimal.New(int64(i), 0).Mul(a.step()))
 }
 
-func (a *Linear) NumDecimals() int {
+func (a *ScaleLinear) NumDecimals() int {
 	step := a.step()
 	if step.IsZero() {
 		return 0
@@ -55,7 +57,7 @@ func (a *Linear) NumDecimals() int {
 	return numDecs
 }
 
-func (a *Linear) step() decimal.Decimal {
+func (a *ScaleLinear) step() decimal.Decimal {
 	step := decimal.Zero
 
 	if s := a.size - 1; s > 0 {
@@ -66,11 +68,11 @@ func (a *Linear) step() decimal.Decimal {
 }
 
 // Range returns the scale range.
-func (a *Linear) Range() (min, max decimal.Decimal) {
+func (a *ScaleLinear) Range() (min, max decimal.Decimal) {
 	return a.min, a.max
 }
 
-func (a *Linear) scale() decimal.Decimal {
+func (a *ScaleLinear) scale() decimal.Decimal {
 	if a.min.Equal(a.max) {
 		return decimal.Zero
 	}
@@ -79,7 +81,7 @@ func (a *Linear) scale() decimal.Decimal {
 }
 
 // Value returns a scaled value from decimal.
-func (a *Linear) Value(v decimal.Decimal) int {
+func (a *ScaleLinear) Value(v decimal.Decimal) int {
 	scale := a.scale()
 
 	ret := v.Sub(a.min).Mul(scale).IntPart()
