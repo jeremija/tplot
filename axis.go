@@ -77,9 +77,9 @@ func (a *Axis) CalcWidth() int {
 	// numDecs contains the number of decimals spot to represent the axis.
 	numDecs := a.scale.NumDecimals() + 2
 
-	_, max := a.scale.Range()
+	rng := a.scale.Range()
 
-	size := len(max.Round(0).String()) + 1 + numDecs
+	size := len(rng.Max.Round(0).String()) + 1 + numDecs
 
 	return size
 }

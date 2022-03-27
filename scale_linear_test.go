@@ -11,15 +11,15 @@ import (
 func TestLiner(t *testing.T) {
 	l := tplot.NewScaleLinear()
 
-	min := decimal.NewFromInt(5)
-	max := decimal.NewFromInt(10)
+	rng := tplot.Range{
+		Min: decimal.NewFromInt(5),
+		Max: decimal.NewFromInt(10),
+	}
 
-	l.SetRange(min, max)
+	l.SetRange(rng)
 	l.SetSize(7)
 
-	min2, max2 := l.Range()
-	assert.True(t, min2.Equal(min))
-	assert.True(t, max2.Equal(max))
+	assert.Equal(t, rng, l.Range())
 
 	assert.Equal(t, l.Size(), 7)
 

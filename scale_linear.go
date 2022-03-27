@@ -8,8 +8,7 @@ import (
 
 // Linear represents a linear scale.
 type ScaleLinear struct {
-	min  decimal.Decimal
-	max  decimal.Decimal
+	rng  Range
 	size int
 }
 
@@ -20,15 +19,23 @@ func NewScaleLinear() *ScaleLinear {
 	return &ScaleLinear{}
 }
 
+func (a *ScaleLinear) Copy() Scale {
+	b := *a
+	return &b
+}
+
 // Size returns the scale size.
 func (a *ScaleLinear) Size() int {
 	return a.size
 }
 
 // SetRange sets the scale range.
-func (a *ScaleLinear) SetRange(min, max decimal.Decimal) {
-	a.min = min
-	a.max = max
+func (a *ScaleLinear) SetRange(rng Range) {
+	a.rng = rng
+}
+
+func (a *ScaleLinear) Range() Range {
+	return a.rng
 }
 
 // SetSize sets the size.
@@ -37,7 +44,7 @@ func (a *ScaleLinear) SetSize(size int) {
 }
 
 func (a *ScaleLinear) Reverse(i int) decimal.Decimal {
-	return a.min.Add(decimal.New(int64(i), 0).Mul(a.step()))
+	return a.rng.Min.Add(decimal.New(int64(i), 0).Mul(a.step()))
 }
 
 func (a *ScaleLinear) NumDecimals() int {
@@ -61,30 +68,25 @@ func (a *ScaleLinear) step() decimal.Decimal {
 	step := decimal.Zero
 
 	if s := a.size - 1; s > 0 {
-		step = a.max.Sub(a.min).Div(decimal.NewFromInt(int64(s)))
+		step = a.rng.Max.Sub(a.rng.Min).Div(decimal.NewFromInt(int64(s)))
 	}
 
 	return step
 }
 
-// Range returns the scale range.
-func (a *ScaleLinear) Range() (min, max decimal.Decimal) {
-	return a.min, a.max
-}
-
 func (a *ScaleLinear) scale() decimal.Decimal {
-	if a.min.Equal(a.max) {
+	if a.rng.Min.Equal(a.rng.Max) {
 		return decimal.Zero
 	}
 
-	return decimal.New(int64(a.size-1), 0).Div(a.max.Sub(a.min))
+	return decimal.New(int64(a.size-1), 0).Div(a.rng.Max.Sub(a.rng.Min))
 }
 
 // Value returns a scaled value from decimal.
 func (a *ScaleLinear) Value(v decimal.Decimal) int {
 	scale := a.scale()
 
-	ret := v.Sub(a.min).Mul(scale).IntPart()
+	ret := v.Sub(a.rng.Min).Mul(scale).IntPart()
 
 	return int(ret)
 }

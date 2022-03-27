@@ -27,7 +27,7 @@ func main() {
 		logger = log
 	}
 
-	ohlcPanel := tplot.NewOHLC()
+	ohlcPanel := tplot.NewOHLCChart()
 	ohlcPanel.SetLogger(logger)
 
 	f, err := os.Open("ohlc.json")

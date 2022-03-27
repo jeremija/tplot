@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOHLC(t *testing.T) {
-	p := tplot.NewOHLC()
+func TestOHLCChart(t *testing.T) {
+	p := tplot.NewOHLCChart()
 	scr := test.NewScreen()
 
 	d := func(val int64) decimal.Decimal {
