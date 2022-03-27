@@ -5,7 +5,6 @@ import (
 	"io"
 	"math"
 	"strconv"
-	"sync"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/jeremija/tplot/scale"
@@ -17,7 +16,6 @@ import (
 type OHLC struct {
 	*tview.Box
 
-	mu      sync.Mutex
 	items   []Item
 	offset  int
 	spacing int
@@ -39,17 +37,11 @@ func New() *OHLC {
 
 // SetLogger sets the logger for debugging.
 func (o *OHLC) SetLogger(w io.Writer) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	o.logger = w
 }
 
 // Logger returns the current logger set. Used for debugging.
 func (o *OHLC) Logger() io.Writer {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	if w := o.logger; w != nil {
 		return w
 	}
@@ -59,17 +51,11 @@ func (o *OHLC) Logger() io.Writer {
 
 // Offset returns the current offset.
 func (o *OHLC) Offset() int {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	return o.offset
 }
 
 // AddOffset adds delta to the current offset.
 func (o *OHLC) AddOffset(delta int) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	delta = o.offset + delta
 
 	o.setOffset(delta)
@@ -77,25 +63,16 @@ func (o *OHLC) AddOffset(delta int) {
 
 // SetOffset sets the scroll offset for OHLC data.
 func (o *OHLC) SetOffset(offset int) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	o.setOffset(offset)
 }
 
 // SetRunes sets the runes used to plot the chart.
 func (o *OHLC) SetRunes(runes Runes) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	o.runes = runes
 }
 
 // Runes returns the current set of runes used to plot the chart.
 func (o *OHLC) Runes() Runes {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	return o.runes
 }
 
@@ -115,25 +92,16 @@ func (o *OHLC) setOffset(offset int) {
 
 // SetItems sets the OHLC data.
 func (o *OHLC) SetItems(items []Item) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	o.items = items
 }
 
 // Items returns the current OHLC data.
 func (o *OHLC) Items() []Item {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	return o.items
 }
 
 // SetSpacing sets the chart spacing.
 func (o *OHLC) SetSpacing(spacing int) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	if spacing <= 0 {
 		spacing = 1
 	}
@@ -143,9 +111,6 @@ func (o *OHLC) SetSpacing(spacing int) {
 
 // Spacing returns the current spacing.
 func (o *OHLC) Spacing() int {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	return o.spacing
 }
 
