@@ -4,16 +4,17 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"strconv"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/shopspring/decimal"
 )
 
 // OHLC is a Box component that can render OHLC data.
 type OHLC struct {
 	*tview.Box
+
+	ohlcAxis *Axis
+	volAxis  *Axis
 
 	items   []OHLCItem
 	offset  int
@@ -26,12 +27,18 @@ type OHLC struct {
 
 // NewOHLC creates a new instance of the OHLC component.
 func NewOHLC() *OHLC {
-	return &OHLC{
-		Box:     tview.NewBox(),
+	ohlc := &OHLC{
+		Box: tview.NewBox(),
+
+		ohlcAxis: NewAxis(),
+		volAxis:  NewAxis(),
+
 		runes:   DefaultOHLCRunes,
 		spacing: 1,
 		volFrac: 0.2,
 	}
+
+	return ohlc
 }
 
 // SetLogger sets the logger for debugging.
@@ -162,83 +169,6 @@ func (o *OHLC) MouseHandler() func(action tview.MouseAction, event *tcell.EventM
 	})
 }
 
-type value struct {
-	decimal decimal.Decimal
-	valid   bool
-}
-
-func (o *OHLC) getAxisWidth(scale Scale) int {
-	// numDecs contains the number of decimals spot to represent the axis.
-	numDecs := scale.NumDecimals() + 2
-
-	_, max := scale.Range()
-
-	size := len(max.Round(0).String()) + 1 + numDecs
-
-	return size
-}
-
-// drawOHLCAxisY draws the Y axis.
-func (o *OHLC) drawAxisY(screen tcell.Screen, log io.Writer, scale Scale, r rect, color tcell.Color, val value) int {
-	var current int
-
-	if val.valid {
-		current = scale.Value(val.decimal)
-	}
-
-	// numDecs contains the number of decimals spot to represent the axis.
-	numDecs := scale.NumDecimals() + 2
-
-	maxWidth := 0
-
-	vals := make([]string, r.h)
-
-	for i := 0; i < r.h; i++ {
-		rev := scale.Reverse(i)
-
-		if val.valid && i == current {
-			rev = val.decimal
-		}
-
-		valFloat, _ := rev.Float64()
-
-		valStr := strconv.FormatFloat(valFloat, 'f', numDecs, 64)
-
-		if l := len(valStr); l > maxWidth {
-			maxWidth = l
-		}
-
-		fmt.Fprintln(log, "value", i, string(valStr))
-
-		vals[i] = valStr
-	}
-
-	if r.w < maxWidth {
-		return 0 // hide axis when no room.
-	}
-
-	style := tcell.StyleDefault.Foreground(color)
-
-	for i, valStr := range vals {
-		yy := r.y + r.h - i - 1
-
-		currentStyle := style
-
-		if val.valid && i == current {
-			currentStyle = tcell.StyleDefault
-		}
-
-		for i, val := range valStr {
-			xx := r.x + r.w - len(valStr) + i
-
-			fmt.Fprintln(log, "axis y", xx, yy, string(val))
-			screen.SetContent(xx, yy, val, nil, currentStyle)
-		}
-	}
-
-	return maxWidth
-}
-
 func (o *OHLC) volSize() int {
 	_, _, _, h := o.GetInnerRect()
 
@@ -318,13 +248,19 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 	ohlcScale.SetRange(ohlcMin, ohlcMax)
 	volScale.SetRange(volMin, volMax)
 
+	o.ohlcAxis.SetScale(ohlcScale)
+	o.ohlcAxis.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorDarkCyan))
+
+	o.volAxis.SetScale(volScale)
+	o.volAxis.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorDarkBlue))
+
 	drawYAxis := true
 
 	if len(items) > 0 {
 		axisYWidth := 0
 
-		w1 := o.getAxisWidth(ohlcScale)
-		w2 := o.getAxisWidth(volScale)
+		w1 := o.ohlcAxis.CalcWidth()
+		w2 := o.volAxis.CalcWidth()
 
 		if w2 > w1 {
 			axisYWidth = w2
@@ -336,6 +272,9 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 
 		if drawYAxis {
 			width -= axisYWidth
+
+			o.ohlcAxis.SetRect(ohlcRect.x+width, ohlcRect.y, axisYWidth, ohlcRect.h)
+			o.volAxis.SetRect(volRect.x+width, volRect.y, axisYWidth, volRect.h)
 
 			// We need to readjust the maxCount after taking account the axis width.
 			maxCount = width / spacing
@@ -364,18 +303,24 @@ func (o *OHLC) Draw(screen tcell.Screen) {
 	}
 
 	if len(scaled) > 0 && drawYAxis {
-		lastC := value{}
-		lastV := value{}
+		lastC := DecimalValue{}
+		lastV := DecimalValue{}
 
 		if lastItem != nil {
-			lastC.decimal = lastItem.C
-			lastC.valid = true
-			lastV.decimal = lastItem.V
-			lastV.valid = true
+			lastC.Decimal = lastItem.C
+			lastC.Valid = true
+			lastV.Decimal = lastItem.V
+			lastV.Valid = true
 		}
 
-		o.drawAxisY(screen, logger, ohlcScale, ohlcRect, tcell.ColorDarkCyan, lastC)
-		o.drawAxisY(screen, logger, volScale, volRect, tcell.ColorDarkBlue, lastV)
+		o.ohlcAxis.SetHighlight(lastC)
+		o.ohlcAxis.Draw(screen)
+
+		o.volAxis.SetHighlight(lastV)
+		o.volAxis.Draw(screen)
+
+		// o.drawAxisY(screen, logger, ohlcScale, ohlcRect, tcell.ColorDarkCyan, lastC)
+		// o.drawAxisY(screen, logger, volScale, volRect, tcell.ColorDarkBlue, lastV)
 	}
 
 	if width < 0 {
