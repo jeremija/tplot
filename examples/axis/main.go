@@ -14,8 +14,8 @@ func main() {
 	bars.SetSliceMethod(tplot.Last)
 
 	bars.SetSpacing(2)
-	bars.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorDarkRed))
-	axis.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorDarkRed))
+	bars.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorOrange))
+	axis.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
 
 	barsWithAxis := tplot.NewAxisBox(axis, bars)
 	barsWithAxis.SetPosition(tplot.Right)
