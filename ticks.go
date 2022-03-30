@@ -11,10 +11,6 @@ type Ticks struct {
 var DefaultTicksRunes = []rune{'⎽', '⎼', '—', '⎻', '⎺'}
 
 func NewTicks() *Ticks {
-	bars := NewBars()
-
-	bars.SetRunes(DefaultTicksRunes)
-
 	return &Ticks{
 		base: newBase(DefaultTicksRunes),
 	}
@@ -34,13 +30,14 @@ func (b *Ticks) Draw(screen tcell.Screen) {
 		return
 	}
 
-	if len(runes) == 0 {
-		runes = []rune{'-'}
-	}
-
 	// We are using special block characters to display quarters so we need
 	// to resize our scale after we've drawn the axis.
 	numFractions := len(b.runes)
+
+	if numFractions == 0 {
+		runes = []rune{'-'}
+		numFractions = 1
+	}
 
 	rng := b.calcRange(data)
 	scale.SetRange(rng)
@@ -58,9 +55,7 @@ func (b *Ticks) Draw(screen tcell.Screen) {
 
 		ch := runes[rem]
 
-		if rem > 0 {
-			yy := y + h - fullSteps - 1
-			screen.SetContent(xx, yy, ch, nil, style)
-		}
+		yy := y + h - fullSteps - 1
+		screen.SetContent(xx, yy, ch, nil, style)
 	}
 }

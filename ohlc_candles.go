@@ -116,6 +116,12 @@ func (o *OHLCCandles) Draw(screen tcell.Screen) {
 		O, H, L, C int
 	}
 
+	if l := len(data); l > maxCount {
+		data = data[l-maxCount:]
+
+		scale.SetRange(o.calcRange(data))
+	}
+
 	scaled := make([]scaledOHLC, len(data))
 
 	for i, item := range data {
@@ -126,14 +132,6 @@ func (o *OHLCCandles) Draw(screen tcell.Screen) {
 			C:  scale.Value(item.C),
 			ts: item.Timestamp,
 		}
-	}
-
-	if l := len(scaled); l > maxCount {
-		// TODO update scale range.
-		data = data[l-maxCount:]
-		scaled = scaled[l-maxCount:]
-
-		scale.SetRange(o.calcRange(data))
 	}
 
 	for i, ohlc := range scaled {
