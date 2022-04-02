@@ -54,7 +54,7 @@ func (t *Tile) SetFactory(factory func() tview.Primitive) {
 	t.factory = factory
 
 	if t.Flex.GetItemCount() == 0 && factory != nil {
-		p = factory()
+		p := factory()
 		t.Flex.AddItem(p, 0, 1, true)
 	}
 }

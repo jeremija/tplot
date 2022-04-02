@@ -7,8 +7,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-var p tview.Primitive
-
 // Axis represents a chart Axis. The current implementation only supports a
 // vertical axis.
 type Axis struct {
