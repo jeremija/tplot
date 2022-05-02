@@ -6,19 +6,20 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/jeremija/tplot"
 	"github.com/rivo/tview"
-	"github.com/shopspring/decimal"
 )
 
 func main() {
-	bars := tplot.NewBars()
+	var factory tplot.FloatFactory
+
+	bars := tplot.NewBars(factory)
 
 	r := rand.New(rand.NewSource(100))
 
 	size := 100
-	data := make([]decimal.Decimal, size)
+	data := make([]tplot.Decimal, size)
 
 	for i := 0; i < size; i++ {
-		data[i] = decimal.NewFromFloat(r.Float64())
+		data[i] = tplot.Float(r.Float64())
 	}
 
 	bars.SetSpacing(2)

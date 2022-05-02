@@ -1,19 +1,24 @@
 package tplot
 
-import "github.com/shopspring/decimal"
-
 type Range struct {
-	Min decimal.Decimal
-	Max decimal.Decimal
+	Min Decimal
+	Max Decimal
 
 	isSet bool
+}
+
+func NewRange(factory DecimalFactory) Range {
+	return Range{
+		Min: factory.Zero(),
+		Max: factory.Zero(),
+	}
 }
 
 func (r Range) IsSet() bool {
 	return r.isSet
 }
 
-func (r Range) Feed(value decimal.Decimal) Range {
+func (r Range) Feed(value Decimal) Range {
 	if !r.isSet {
 		r.Min = value
 		r.Max = value

@@ -8,7 +8,6 @@ import (
 
 	"github.com/jeremija/tplot"
 	"github.com/rivo/tview"
-	"github.com/shopspring/decimal"
 )
 
 func main() {
@@ -27,7 +26,9 @@ func main() {
 		logger = log
 	}
 
-	ohlcPanel := tplot.NewOHLCChart()
+	var factory tplot.FloatFactory
+
+	ohlcPanel := tplot.NewOHLCChart(factory)
 	ohlcPanel.SetLogger(logger)
 
 	f, err := os.Open("ohlc.json")
@@ -47,8 +48,13 @@ func main() {
 
 	f.Close()
 
-	mustDec := func(n json.Number) decimal.Decimal {
-		return decimal.RequireFromString(string(n))
+	mustDec := func(n json.Number) tplot.Decimal {
+		f64, err := n.Float64()
+		if err != nil {
+			panic(err)
+		}
+
+		return tplot.Float(f64)
 	}
 
 	mustInt64 := func(n json.Number) int64 {

@@ -10,9 +10,9 @@ type Bars struct {
 
 var DefaultBarsRunes = []rune{'▃', '▄', '▆', '█'}
 
-func NewBars() *Bars {
+func NewBars(factory DecimalFactory) *Bars {
 	return &Bars{
-		base: newBase(DefaultBarsRunes),
+		base: newBase(factory, DefaultBarsRunes),
 	}
 }
 

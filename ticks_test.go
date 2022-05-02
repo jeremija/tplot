@@ -6,31 +6,32 @@ import (
 
 	"github.com/jeremija/tplot"
 	"github.com/jeremija/tplot/test"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTicks(t *testing.T) {
-	p := tplot.NewTicks()
+	var factory tplot.FloatFactory
+
+	p := tplot.NewTicks(factory)
 	scr := test.NewScreen()
 
-	stringVals := []string{
-		"0",
-		"1.5",
-		"2.2",
-		"3.4",
-		"4.6",
-		"5.8",
-		"6",
-		"9.2",
-		"8.5",
-		"10",
+	vals := []tplot.Float{
+		0,
+		1.5,
+		2.2,
+		3.4,
+		4.6,
+		5.8,
+		6,
+		9.2,
+		8.5,
+		10,
 	}
 
-	data := make([]decimal.Decimal, len(stringVals))
+	data := make([]tplot.Decimal, len(vals))
 
-	for i, str := range stringVals {
-		data[i] = decimal.RequireFromString(str)
+	for i, val := range vals {
+		data[i] = val
 	}
 
 	p.SetRect(0, 0, 12, 10)
@@ -39,16 +40,16 @@ func TestTicks(t *testing.T) {
 	p.Draw(scr)
 
 	exp := `
-           ⎺
+         ⎽ ⎺
           ⎼
 
 
        ⎻⎺
       —
      ⎼
-
+    ⎽
    —
-`
+  ⎽`
 
 	fmt.Println("== expected ==")
 	fmt.Println(exp)

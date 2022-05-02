@@ -1,6 +1,7 @@
 package tplot
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/gdamore/tcell/v2"
@@ -11,6 +12,7 @@ import (
 // vertical axis.
 type Axis struct {
 	*tview.Box
+	factory        DecimalFactory
 	scale          Scale
 	style          tcell.Style
 	highlightStyle tcell.Style
@@ -18,11 +20,12 @@ type Axis struct {
 }
 
 // NewAxis creates a new instance of Axis.
-func NewAxis() *Axis {
+func NewAxis(factory DecimalFactory) *Axis {
 	return &Axis{
+		factory:        factory,
 		Box:            tview.NewBox(),
 		style:          tcell.StyleDefault,
-		scale:          NewScaleLinear(),
+		scale:          NewScaleLinear(factory),
 		highlightStyle: tcell.StyleDefault,
 	}
 }
@@ -74,7 +77,7 @@ func (a *Axis) CalcWidth() int {
 
 	rng := a.scale.Range()
 
-	size := len(rng.Max.Round(0).String()) + 1 + numDecs
+	size := len(rng.Max.Round().String()) + 1 + numDecs
 
 	return size
 }
@@ -108,7 +111,7 @@ func (a *Axis) Draw(screen tcell.Screen) {
 			rev = highlight.Decimal
 		}
 
-		valFloat, _ := rev.Float64()
+		valFloat := rev.Float64()
 
 		valStr := strconv.FormatFloat(valFloat, 'f', numDecs, 64)
 
@@ -123,6 +126,8 @@ func (a *Axis) Draw(screen tcell.Screen) {
 
 	// Hide axis when no room.
 	if w < maxWidth {
+		panic(fmt.Sprintf("%q", vals))
+		// panic(fmt.Sprint(w, maxWidth, numDecs))
 		return
 	}
 

@@ -10,9 +10,9 @@ type Ticks struct {
 
 var DefaultTicksRunes = []rune{'⎽', '⎼', '—', '⎻', '⎺'}
 
-func NewTicks() *Ticks {
+func NewTicks(factory DecimalFactory) *Ticks {
 	return &Ticks{
-		base: newBase(DefaultTicksRunes),
+		base: newBase(factory, DefaultTicksRunes),
 	}
 }
 

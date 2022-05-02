@@ -4,12 +4,13 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/jeremija/tplot"
 	"github.com/rivo/tview"
-	"github.com/shopspring/decimal"
 )
 
 func main() {
-	bars := tplot.NewBars()
-	axis := tplot.NewAxis()
+	var factory tplot.FloatFactory
+
+	bars := tplot.NewBars(factory)
+	axis := tplot.NewAxis(factory)
 
 	bars.SetSliceMethod(tplot.Last)
 
@@ -21,10 +22,10 @@ func main() {
 	barsWithAxis.SetPosition(tplot.Right)
 
 	size := 101
-	data := make([]decimal.Decimal, size)
+	data := make([]tplot.Decimal, size)
 
 	for i := 0; i < size; i++ {
-		data[i] = decimal.NewFromInt(int64(i))
+		data[i] = tplot.Float(int64(i))
 	}
 
 	axis.SetHighlight(tplot.DecimalValue{

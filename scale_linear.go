@@ -2,12 +2,12 @@ package tplot
 
 import (
 	"math"
-
-	"github.com/shopspring/decimal"
 )
 
 // Linear represents a linear scale.
 type ScaleLinear struct {
+	factory DecimalFactory
+
 	rng  Range
 	size int
 }
@@ -15,8 +15,11 @@ type ScaleLinear struct {
 var _ Scale = &ScaleLinear{}
 
 // NewLinear constructs a new linear scale.
-func NewScaleLinear() *ScaleLinear {
-	return &ScaleLinear{}
+func NewScaleLinear(factory DecimalFactory) *ScaleLinear {
+	return &ScaleLinear{
+		factory: factory,
+		rng:     NewRange(factory),
+	}
 }
 
 func (a *ScaleLinear) Copy() Scale {
@@ -43,8 +46,10 @@ func (a *ScaleLinear) SetSize(size int) {
 	a.size = size
 }
 
-func (a *ScaleLinear) Reverse(i int) decimal.Decimal {
-	return a.rng.Min.Add(decimal.New(int64(i), 0).Mul(a.step()))
+func (a *ScaleLinear) Reverse(i int) Decimal {
+	val := a.factory.NewFromInt64(int64(i))
+
+	return a.rng.Min.Add(val.Mul(a.step()))
 }
 
 func (a *ScaleLinear) NumDecimals() int {
@@ -53,7 +58,7 @@ func (a *ScaleLinear) NumDecimals() int {
 		return 0
 	}
 
-	stepFloat, _ := step.Float64()
+	stepFloat := step.Float64()
 
 	numDecs := 0
 
@@ -64,26 +69,28 @@ func (a *ScaleLinear) NumDecimals() int {
 	return numDecs
 }
 
-func (a *ScaleLinear) step() decimal.Decimal {
-	step := decimal.Zero
+func (a *ScaleLinear) step() Decimal {
+	step := a.factory.Zero()
 
 	if s := a.size - 1; s > 0 {
-		step = a.rng.Max.Sub(a.rng.Min).Div(decimal.NewFromInt(int64(s)))
+		step = a.rng.Max.Sub(a.rng.Min).Div(a.factory.NewFromInt64(int64(s)))
 	}
 
 	return step
 }
 
-func (a *ScaleLinear) scale() decimal.Decimal {
+func (a *ScaleLinear) scale() Decimal {
 	if a.rng.Min.Equal(a.rng.Max) {
-		return decimal.Zero
+		return a.factory.Zero()
 	}
 
-	return decimal.New(int64(a.size-1), 0).Div(a.rng.Max.Sub(a.rng.Min))
+	val := a.factory.NewFromInt64(int64(a.size - 1))
+
+	return val.Div(a.rng.Max.Sub(a.rng.Min))
 }
 
 // Value returns a scaled value from decimal.
-func (a *ScaleLinear) Value(v decimal.Decimal) int {
+func (a *ScaleLinear) Value(v Decimal) int {
 	scale := a.scale()
 
 	ret := v.Sub(a.rng.Min).Mul(scale).IntPart()

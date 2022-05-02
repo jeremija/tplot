@@ -7,16 +7,17 @@ import (
 
 	"github.com/jeremija/tplot"
 	"github.com/jeremija/tplot/test"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestOHLCChart(t *testing.T) {
-	p := tplot.NewOHLCChart()
+	var factory tplot.FloatFactory
+
+	p := tplot.NewOHLCChart(factory)
 	scr := test.NewScreen()
 
-	d := func(val int64) decimal.Decimal {
-		return decimal.New(val, 0)
+	d := func(val int64) tplot.Decimal {
+		return factory.NewFromInt64(val)
 	}
 
 	date := func(str string) time.Time {

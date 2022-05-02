@@ -11,6 +11,8 @@ type OHLCCandles struct {
 	*tview.Box
 	scale Scale
 
+	factory DecimalFactory
+
 	data    []OHLC
 	rng     Range
 	spacing int
@@ -21,16 +23,18 @@ type OHLCCandles struct {
 	runes OHLCRunes
 }
 
-func NewOHLCCandles() *OHLCCandles {
+func NewOHLCCandles(factory DecimalFactory) *OHLCCandles {
 	style := tcell.StyleDefault
 
 	return &OHLCCandles{
 		Box:           tview.NewBox(),
-		scale:         NewScaleLinear(),
+		factory:       factory,
+		scale:         NewScaleLinear(factory),
 		spacing:       1,
 		negativeStyle: style.Foreground(tcell.ColorRed),
 		positiveStyle: style.Foreground(tcell.ColorGreen),
 		runes:         DefaultOHLCRunes,
+		rng:           NewRange(factory),
 	}
 }
 
@@ -80,7 +84,9 @@ func (o *OHLCCandles) Runes() OHLCRunes {
 	return o.runes
 }
 
-func (o *OHLCCandles) calcRange(items []OHLC) (rng Range) {
+func (o *OHLCCandles) calcRange(items []OHLC) Range {
+	rng := NewRange(o.factory)
+
 	for _, item := range items {
 		rng = rng.Feed(item.L)
 		rng = rng.Feed(item.H)

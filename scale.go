@@ -1,9 +1,5 @@
 package tplot
 
-import (
-	"github.com/shopspring/decimal"
-)
-
 // Scale describes a component that can scale decimal values to terminal grid.
 type Scale interface {
 	Copy() Scale
@@ -19,8 +15,8 @@ type Scale interface {
 	// needed to draw the axis.
 	NumDecimals() int
 	// Value returns the place on scale.
-	Value(decimal.Decimal) int
+	Value(Decimal) int
 	// Reverse returns the min value for the place on
 	// scale.
-	Reverse(int) decimal.Decimal
+	Reverse(int) Decimal
 }

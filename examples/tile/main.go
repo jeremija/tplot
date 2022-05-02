@@ -5,26 +5,27 @@ import (
 
 	"github.com/jeremija/tplot"
 	"github.com/rivo/tview"
-	"github.com/shopspring/decimal"
 )
 
 func main() {
 	size := 1001
 	ohlcs := make([]tplot.OHLC, size)
-	tickData := make([]decimal.Decimal, size)
+	tickData := make([]tplot.Decimal, size)
 	ts := time.Now().Truncate(time.Minute)
 
+	var decFactory tplot.FloatFactory
+
 	for i := 0; i < size; i++ {
-		v := decimal.NewFromInt(int64(i))
+		v := tplot.Float(i)
 		ts := ts.Add(time.Minute)
 
 		ohlcs[i] = tplot.OHLC{
 			Timestamp: ts,
-			O:         v.Add(decimal.NewFromInt(10)),
-			H:         v.Add(decimal.NewFromInt(15)),
-			L:         v.Sub(decimal.NewFromInt(15)),
-			C:         v.Sub(decimal.NewFromInt(10)),
-			V:         v.Mul(decimal.NewFromInt(500)),
+			O:         v.Add(tplot.Float(10)),
+			H:         v.Add(tplot.Float(15)),
+			L:         v.Sub(tplot.Float(15)),
+			C:         v.Sub(tplot.Float(10)),
+			V:         v.Mul(tplot.Float(500)),
 		}
 
 		tickData[i] = ohlcs[i].V
@@ -38,7 +39,7 @@ func main() {
 		c := tplot.NewContainer()
 
 		list.AddItem("Bar", "Bar Chart", 'b', func() {
-			bars := tplot.NewBars()
+			bars := tplot.NewBars(decFactory)
 			bars.SetData(tickData)
 			bars.SetSpacing(2)
 
@@ -46,7 +47,7 @@ func main() {
 			app.SetFocus(bars)
 		})
 		list.AddItem("Tick", "Tick Chart", 't', func() {
-			ticks := tplot.NewTicks()
+			ticks := tplot.NewTicks(decFactory)
 			ticks.SetData(tickData)
 			ticks.SetSpacing(2)
 
@@ -54,7 +55,7 @@ func main() {
 			app.SetFocus(ticks)
 		})
 		list.AddItem("OHLC", "OHLC Candles", 'o', func() {
-			candles := tplot.NewOHLCCandles()
+			candles := tplot.NewOHLCCandles(decFactory)
 			candles.SetData(ohlcs)
 			candles.SetSpacing(2)
 

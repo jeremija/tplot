@@ -7,12 +7,13 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/shopspring/decimal"
 )
 
 // OHLCChart is a Box component that can render OHLCChart data.
 type OHLCChart struct {
 	*tview.Box
+
+	factory DecimalFactory
 
 	ohlcCandles *OHLCCandles
 	ohlcAxis    *Axis
@@ -30,15 +31,17 @@ type OHLCChart struct {
 }
 
 // NewOHLCChart creates a new instance of the OHLC component.
-func NewOHLCChart() *OHLCChart {
+func NewOHLCChart(factory DecimalFactory) *OHLCChart {
 	ohlc := &OHLCChart{
 		Box: tview.NewBox(),
 
-		ohlcCandles: NewOHLCCandles(),
-		ohlcAxis:    NewAxis(),
+		factory: factory,
 
-		volumeBars: NewBars(),
-		volumeAxis: NewAxis(),
+		ohlcCandles: NewOHLCCandles(factory),
+		ohlcAxis:    NewAxis(factory),
+
+		volumeBars: NewBars(factory),
+		volumeAxis: NewAxis(factory),
 
 		volumeHeightFraction: 0.2,
 	}
@@ -259,18 +262,20 @@ func (o *OHLCChart) ohlcRect() rect {
 }
 
 func (o *OHLCChart) volRect() rect {
-	x, y, w, h := o.GetInnerRect()
+	x, y, w, _ := o.GetInnerRect()
 	ohlcRect := o.ohlcRect()
 
 	volSize := o.volSize()
 
-	h = volSize
+	h := volSize
 	y += ohlcRect.h
 
 	return rect{x: x, y: y, w: w, h: h}
 }
 
-func (o *OHLCChart) ohlcRange(items []OHLC) (rng Range) {
+func (o *OHLCChart) ohlcRange(items []OHLC) Range {
+	rng := NewRange(o.factory)
+
 	for _, ohlc := range items {
 		rng = rng.Feed(ohlc.L)
 		rng = rng.Feed(ohlc.H)
@@ -279,7 +284,9 @@ func (o *OHLCChart) ohlcRange(items []OHLC) (rng Range) {
 	return rng
 }
 
-func (o *OHLCChart) volumeRange(items []OHLC) (rng Range) {
+func (o *OHLCChart) volumeRange(items []OHLC) Range {
+	rng := NewRange(o.factory)
+
 	for _, ohlc := range items {
 		rng = rng.Feed(ohlc.V)
 	}
@@ -291,8 +298,8 @@ func (o *OHLCChart) volumeRange(items []OHLC) (rng Range) {
 func (o *OHLCChart) Draw(screen tcell.Screen) {
 	ohlcRect := o.ohlcRect()
 	volRect := o.volRect()
-	ohlcScale := NewScaleLinear()
-	volScale := NewScaleLinear()
+	ohlcScale := NewScaleLinear(o.factory)
+	volScale := NewScaleLinear(o.factory)
 	spacing := o.Spacing()
 	items := o.Items()
 	offset := o.Offset()
@@ -413,7 +420,7 @@ func (o *OHLCChart) Draw(screen tcell.Screen) {
 	o.ohlcCandles.SetData(items)
 	o.ohlcCandles.Draw(screen)
 
-	volValues := make([]decimal.Decimal, len(items))
+	volValues := make([]Decimal, len(items))
 
 	for i, item := range items {
 		volValues[i] = item.V

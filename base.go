@@ -3,7 +3,6 @@ package tplot
 import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"github.com/shopspring/decimal"
 )
 
 type base struct {
@@ -12,8 +11,9 @@ type base struct {
 	style       tcell.Style
 	spacing     int
 	runes       []rune
-	data        []decimal.Decimal
+	data        []Decimal
 	sliceMethod SliceMethod
+	factory     DecimalFactory
 }
 
 // SliceMethod describes the slicing method when the number of items in the
@@ -27,12 +27,13 @@ const (
 	First
 )
 
-func newBase(runes []rune) *base {
+func newBase(factory DecimalFactory, runes []rune) *base {
 	return &base{
 		Box:     tview.NewBox(),
-		scale:   NewScaleLinear(),
+		scale:   NewScaleLinear(factory),
 		spacing: 1,
 		runes:   runes,
+		factory: factory,
 	}
 }
 
@@ -64,7 +65,9 @@ func (b *base) Style() tcell.Style {
 	return b.style
 }
 
-func (b *base) calcRange(values []decimal.Decimal) (rng Range) {
+func (b *base) calcRange(values []Decimal) Range {
+	rng := NewRange(b.factory)
+
 	for _, dec := range values {
 		rng = rng.Feed(dec)
 	}
@@ -72,13 +75,13 @@ func (b *base) calcRange(values []decimal.Decimal) (rng Range) {
 	return rng
 }
 
-func (b *base) Data() []decimal.Decimal {
+func (b *base) Data() []Decimal {
 	return b.data
 }
 
 // DataSlice returns data, but only the items that
 // fit on the screen.
-func (b *base) DataSlice() []decimal.Decimal {
+func (b *base) DataSlice() []Decimal {
 	_, _, w, _ := b.GetInnerRect()
 	maxCount := w / b.spacing
 	data := b.data
@@ -94,11 +97,11 @@ func (b *base) DataSlice() []decimal.Decimal {
 	return data
 }
 
-func (b *base) SetData(data []decimal.Decimal) {
+func (b *base) SetData(data []Decimal) {
 	b.data = data
 }
 
-func (b *base) Values() []decimal.Decimal {
+func (b *base) Values() []Decimal {
 	return b.data
 }
 
