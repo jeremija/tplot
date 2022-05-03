@@ -1,7 +1,6 @@
 package tplot
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/gdamore/tcell/v2"
@@ -119,15 +118,11 @@ func (a *Axis) Draw(screen tcell.Screen) {
 			maxWidth = l
 		}
 
-		// fmt.Fprintln(log, "value", i, string(valStr))
-
 		vals[i] = valStr
 	}
 
 	// Hide axis when no room.
 	if w < maxWidth {
-		panic(fmt.Sprintf("%q", vals))
-		// panic(fmt.Sprint(w, maxWidth, numDecs))
 		return
 	}
 
