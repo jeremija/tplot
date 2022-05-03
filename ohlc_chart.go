@@ -383,8 +383,6 @@ func (o *OHLCChart) Draw(screen tcell.Screen) {
 		}
 	}
 
-	logger := o.Logger()
-
 	var lastItem *OHLC
 
 	if l := len(items); l > 0 {
@@ -412,8 +410,6 @@ func (o *OHLCChart) Draw(screen tcell.Screen) {
 	if width < 0 {
 		return
 	}
-
-	fmt.Fprintln(logger, "log start", len(items))
 
 	o.ohlcCandles.SetRect(ohlcRect.x, ohlcRect.y, width, ohlcRect.h)
 	o.ohlcCandles.SetScale(ohlcScale)
