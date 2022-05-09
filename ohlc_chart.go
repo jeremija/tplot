@@ -184,24 +184,59 @@ func (o *OHLCChart) Spacing() int {
 
 // MouseHandler implements tview.Primitive.
 func (o *OHLCChart) InputHandler() func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
+	moveHome := func() {
+		s := len(o.Items())
+		o.SetOffset(s - 1)
+	}
+
+	moveEnd := func() {
+		o.SetOffset(0)
+	}
+
+	moveLeft := func() {
+		o.AddOffset(1)
+	}
+
+	moveRight := func() {
+		o.AddOffset(-1)
+	}
+
+	moveLeftLong := func() {
+		o.SetOffset(o.offset + 20)
+	}
+
+	moveRightLong := func() {
+		o.SetOffset(o.offset - 20)
+	}
+
 	return o.WrapInputHandler(
 		func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
 			switch event.Key() {
 			case tcell.KeyEnd:
-				o.SetOffset(0)
+				moveEnd()
 			case tcell.KeyHome:
-				s := len(o.Items())
-				o.SetOffset(s - 1)
+				moveHome()
 			case tcell.KeyPgUp:
-				o.SetOffset(o.offset + 20)
+				moveLeftLong()
 			case tcell.KeyPgDn:
-				o.SetOffset(o.offset - 20)
+				moveRightLong()
 			case tcell.KeyLeft:
-				o.AddOffset(1)
+				moveLeft()
 			case tcell.KeyRight:
-				o.AddOffset(-1)
+				moveRight()
 
 			case tcell.KeyRune:
+				if event.Modifiers()&tcell.ModAlt > 0 {
+					switch event.Rune() {
+					case 'b':
+						moveLeftLong()
+					case 'f':
+						moveRightLong()
+
+						return
+					}
+				}
+
 				switch event.Rune() {
 				case '0':
 					o.SetSpacing(1)
@@ -209,10 +244,18 @@ func (o *OHLCChart) InputHandler() func(event *tcell.EventKey, setFocus func(p t
 					o.AddSpacing(1)
 				case '-':
 					o.AddSpacing(-1)
+				case 'b':
+					moveLeftLong()
+				case 'w', 'e':
+					moveRightLong()
+				case 'g', '^':
+					moveHome()
+				case 'G', '$':
+					moveEnd()
 				case 'h':
-					o.AddOffset(1)
+					moveLeft()
 				case 'l':
-					o.AddOffset(-1)
+					moveRight()
 				}
 			}
 		},
