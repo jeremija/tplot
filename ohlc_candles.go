@@ -143,13 +143,11 @@ func (o *OHLCCandles) Draw(screen tcell.Screen) {
 	for i, ohlc := range scaled {
 		open, high, low, cl := ohlc.O, ohlc.H, ohlc.L, ohlc.C
 
-		style := tcell.StyleDefault
-
-		style = style.Foreground(tcell.ColorRed)
+		style := o.negativeStyle
 
 		a, b := open, cl
 		if b >= a {
-			style = style.Foreground(tcell.ColorGreen)
+			style = o.positiveStyle
 			a, b = b, a
 		}
 
